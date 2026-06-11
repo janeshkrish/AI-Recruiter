@@ -100,9 +100,10 @@ class CandidateScore(BaseModel):
     score: float
     skill_match: float
     experience_match: float
-    education_match: float
     semantic_similarity: float
     location_match: float
+    potential_score: float = 0.0
+    transferable_matches: int = 0
     reasoning: str
 
 

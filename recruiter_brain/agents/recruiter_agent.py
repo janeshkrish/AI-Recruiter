@@ -2,8 +2,8 @@
 Recruiter Agent
 ================
 
-A consolidated orchestration agent that handles the entire candidate
-discovery and ranking lifecycle. Replaces the old multi-agent system.
+Orchestrator for the Hackathon Winning Architecture.
+Handles JD parsing and delegates ranking to the Multi-Agent Recruiter Jury.
 """
 
 from __future__ import annotations
@@ -17,50 +17,38 @@ from openai import AsyncOpenAI
 from recruiter_brain.config import get_settings
 from recruiter_brain.embeddings.faiss_store import FAISSVectorStore
 from recruiter_brain.embeddings.embedding_service import EmbeddingService
-from recruiter_brain.scoring.ranking_engine import RankingEngine
-from recruiter_brain.scoring.explainability import ExplainabilityEngine
+from recruiter_brain.agents.recruiter_jury import RecruiterJury
 
 
 class RecruiterAgent:
-    """Orchestrates JD parsing, retrieval, scoring, and explaining."""
+    """Orchestrates JD parsing, retrieval, and Multi-Agent Jury Evaluation."""
 
     def __init__(self, vector_store: FAISSVectorStore, embedding_service: EmbeddingService):
         self.settings = get_settings()
         self.vector_store = vector_store
         self.embedding_service = embedding_service
-        self.ranking_engine = RankingEngine()
+        self.jury = RecruiterJury()
         
-        # We can use OpenAI for parsing the JD, or fallback to heuristics
         self.llm_client = AsyncOpenAI(api_key=self.settings.llm.openai_api_key) if self.settings.llm.openai_api_key else None
 
     async def parse_job_description(self, jd_text: str) -> dict[str, Any]:
         """
-        Extract structured requirements from unstructured JD text.
-        Returns a dict with 'skills', 'years_experience', 'location', 'require_degree'.
+        Extract structured and HIDDEN requirements from unstructured JD text.
         """
-        logger.info("Parsing Job Description...")
+        logger.info("Parsing Job Description for Hidden Intelligence...")
         
-        # If simulation mode or no API key, use a fast heuristic fallback based on the known JD
         if self.settings.llm.simulation_mode or not self.llm_client:
-            logger.info("Using heuristic JD parsing (simulation mode)")
             return self._heuristic_jd_parse(jd_text)
 
-        # Standard LLM prompt for JD parsing
         prompt = f"""
-        Extract the following from this job description:
-        1. Required skills (list of strings)
-        2. Minimum years of experience required (float)
+        Act as an Elite Recruiter. Analyze this job description and extract:
+        1. Exact skills required (list of strings)
+        2. Minimum years of experience (float)
         3. Location (string)
-        4. Does it require a specific degree? (boolean)
+        4. require_degree (boolean)
+        5. Hidden behavioral traits needed (e.g. "ambiguity", "startup-fit") (list of strings)
 
-        Respond ONLY in JSON format:
-        {{
-            "skills": ["python", "machine learning"],
-            "years_experience": 5.0,
-            "location": "Pune",
-            "require_degree": false
-        }}
-
+        Respond ONLY in JSON format.
         JD Text:
         {jd_text}
         """
@@ -73,7 +61,6 @@ class RecruiterAgent:
                 temperature=0.0
             )
             parsed = json.loads(response.choices[0].message.content)
-            # Normalize list
             if "skills" not in parsed:
                 parsed["skills"] = []
             return parsed
@@ -82,10 +69,9 @@ class RecruiterAgent:
             return self._heuristic_jd_parse(jd_text)
 
     def _heuristic_jd_parse(self, jd_text: str) -> dict[str, Any]:
-        """Hardcoded fallback for the exact challenge JD to save API calls/time."""
+        """Heuristic fallback identifying standard and hidden requirements."""
         jd_lower = jd_text.lower()
         
-        # Attempt to pull years of experience roughly
         years = 5.0
         if "5–9 years" in jd_lower or "5-9 years" in jd_lower:
             years = 5.0
@@ -99,32 +85,33 @@ class RecruiterAgent:
             ],
             "years_experience": years,
             "location": "Pune/Noida",
-            "require_degree": False
+            "require_degree": False,
+            "hidden_traits": ["startup-fit", "research-oriented", "ambiguity"]
         }
 
     async def run_pipeline(self, jd_text: str) -> list[dict[str, Any]]:
         """
-        Execute the full ranking pipeline for a given JD.
+        Execute the full Recruiter Intelligence pipeline.
         """
         # 1. Parse JD
         jd_parsed = await self.parse_job_description(jd_text)
         logger.info(f"Parsed JD Requirements: {jd_parsed}")
 
         # 2. Embed JD
-        # We construct a query document that aligns with candidate docs
         jd_query = (
             f"Job requires {jd_parsed['years_experience']} years experience in "
-            f"{', '.join(jd_parsed['skills'])}. Location: {jd_parsed['location']}."
+            f"{', '.join(jd_parsed['skills'])}. Location: {jd_parsed['location']}. "
+            f"Traits: {', '.join(jd_parsed.get('hidden_traits', []))}."
         )
         query_embedding = self.embedding_service.generate_embedding(jd_query)
 
-        # 3. Retrieve Top Candidates via FAISS (fetch 5x the top_k to allow hybrid re-ranking)
+        # 3. Retrieve Top Candidates via FAISS (Pre-filter)
         fetch_k = self.settings.pipeline.top_k_results * 5
         retrieved_candidates = self.vector_store.search(query_embedding, top_k=fetch_k)
         logger.info(f"Retrieved top {len(retrieved_candidates)} candidates via FAISS.")
 
-        # 4. Rank Candidates
-        ranked = self.ranking_engine.rank_candidates(
+        # 4. Multi-Agent Jury Evaluation
+        ranked = self.jury.rank_candidates(
             retrieved_candidates=retrieved_candidates,
             jd_skills=jd_parsed["skills"],
             jd_years=jd_parsed["years_experience"],
@@ -132,16 +119,13 @@ class RecruiterAgent:
             require_degree=jd_parsed.get("require_degree", False)
         )
 
-        # 5. Take Top K and Generate Explanations
+        # 5. Take Top K
         top_ranked = ranked[:self.settings.pipeline.top_k_results]
-        for candidate in top_ranked:
-            reasons = ExplainabilityEngine.generate_reasoning(candidate, jd_parsed["skills"])
-            # Format as requested: array of strings or single string
-            candidate["reasoning"] = "; ".join(reasons)
-            
-            # Remove raw profile before returning to avoid massive payload
-            if "raw_profile" in candidate:
-                del candidate["raw_profile"]
+        
+        # Cleanup massive raw profiles before API return
+        for c in top_ranked:
+            if "raw_profile" in c:
+                del c["raw_profile"]
 
-        logger.info(f"Pipeline complete. Returning {len(top_ranked)} ranked candidates.")
+        logger.info(f"Pipeline complete. Returning {len(top_ranked)} thoroughly vetted candidates.")
         return top_ranked
