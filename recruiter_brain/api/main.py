@@ -93,6 +93,11 @@ app.add_middleware(
 
 class RankRequest(BaseModel):
     job_description: str = Field(..., description="The raw JD text")
+    custom_weights: dict[str, float] | None = None
+
+class CopilotRequest(BaseModel):
+    question: str
+    candidates: list[dict[str, Any]]
 
 
 class CandidateScore(BaseModel):
@@ -128,12 +133,81 @@ async def rank_candidates(request: RankRequest):
         raise HTTPException(status_code=503, detail="Agent not initialized")
         
     try:
-        results = await agent.run_pipeline(request.job_description)
+        results = await agent.run_pipeline(request.job_description, custom_weights=request.custom_weights)
         # Results are dicts mapping to CandidateScore
         return {"ranked_candidates": results}
     except Exception as e:
         logger.exception("Ranking failed")
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/landscape")
+async def get_talent_landscape(limit: int = 200):
+    """Run PCA to compress FAISS embeddings into 2D coordinates for the UI Scatter Plot."""
+    vs: FAISSVectorStore = app_state.get("vector_store")
+    if not vs or not vs.metadata or vs.is_empty():
+        return {"points": []}
+    
+    try:
+        import numpy as np
+        from sklearn.decomposition import PCA
+        
+        # Get up to 'limit' vectors
+        vectors = vs.index.reconstruct_n(0, min(limit, vs.index.ntotal))
+        
+        # We need a fallback if we don't have enough data
+        if len(vectors) < 3:
+            return {"points": []}
+            
+        pca = PCA(n_components=2)
+        coords = pca.fit_transform(vectors)
+        
+        points = []
+        for i, coord in enumerate(coords):
+            # Normalize to 0-100 scale for UI
+            points.append({
+                "candidate_id": vs.metadata[i]["candidate_id"],
+                "x": float(coord[0]) * 10, # arbitrary scaling for visual spread
+                "y": float(coord[1]) * 10
+            })
+            
+        return {"points": points}
+    except ImportError:
+        logger.warning("scikit-learn not installed, returning empty landscape")
+        return {"points": []}
+    except Exception as e:
+        logger.exception("Landscape generation failed")
+        return {"points": []}
+
+@app.post("/api/copilot")
+async def copilot_chat(request: CopilotRequest):
+    """Heuristic explanation engine returning natural language about candidates."""
+    q = request.question.lower()
+    cands = request.candidates
+    
+    if not cands:
+        return {"answer": "I need candidate data to provide insights."}
+        
+    c1 = cands[0]
+    
+    if "why" in q and "rank" in q:
+        reasons = c1.get("reasoning", "Strong overall match.")
+        return {"answer": f"Candidate {c1['candidate_id']} ranked highly because: {reasons}. Their potential score is {c1.get('potential_score', 0)}%."}
+        
+    if "compare" in q and len(cands) >= 2:
+        c2 = cands[1]
+        c1_tech = c1.get("skill_match", 0)
+        c2_tech = c2.get("skill_match", 0)
+        better_tech = c1['candidate_id'] if c1_tech > c2_tech else c2['candidate_id']
+        diff = abs(c1_tech - c2_tech)
+        return {"answer": f"Comparing the top two: {better_tech} has a {diff:.1f}% higher technical score. However, look at their Potential Score and Transferable Skills to make the final call."}
+        
+    if "hidden gem" in q:
+        gems = [c for c in cands if c.get("potential_score", 0) > 85 and c.get("experience_match", 100) < 60]
+        if gems:
+            return {"answer": f"Yes! Look at {gems[0]['candidate_id']}. They have massive learning potential ({gems[0]['potential_score']}%) despite lower traditional experience."}
+        return {"answer": "No obvious hidden gems in this immediate batch. Try adjusting the What-If weights!"}
+        
+    return {"answer": "Based on the Multi-Agent evaluation, these candidates represent the absolute top tier for your specific JD requirements. Is there a specific metric you'd like me to explain?"}
 
 
 @app.get("/api/candidates")

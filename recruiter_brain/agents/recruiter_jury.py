@@ -34,7 +34,8 @@ class RecruiterJury:
         jd_years: float,
         jd_location: str,
         semantic_score: float,
-        require_degree: bool = True
+        require_degree: bool = True,
+        custom_weights: dict[str, float] | None = None
     ) -> dict[str, Any]:
         """
         Passes candidate through the 4-Agent Jury.
@@ -91,6 +92,8 @@ class RecruiterJury:
         # ---------------------------------------------------------
         # Weighted combination mirroring the config but dynamically adjusted
         w = self.settings.weights.as_dict
+        if custom_weights:
+            w.update(custom_weights)
         
         # Map our 4 agents to the 5 standard weights
         base_score = (
@@ -137,7 +140,8 @@ class RecruiterJury:
         jd_skills: list[str],
         jd_years: float,
         jd_location: str,
-        require_degree: bool = True
+        require_degree: bool = True,
+        custom_weights: dict[str, float] | None = None
     ) -> list[dict[str, Any]]:
         """Rank a batch using the Multi-Agent Jury."""
         results = []
@@ -146,7 +150,7 @@ class RecruiterJury:
             semantic = item["score"]
             
             score_card = self.evaluate_candidate(
-                c_meta, jd_skills, jd_years, jd_location, semantic, require_degree
+                c_meta, jd_skills, jd_years, jd_location, semantic, require_degree, custom_weights
             )
             results.append(score_card)
 

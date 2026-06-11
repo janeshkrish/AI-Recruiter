@@ -89,7 +89,7 @@ class RecruiterAgent:
             "hidden_traits": ["startup-fit", "research-oriented", "ambiguity"]
         }
 
-    async def run_pipeline(self, jd_text: str) -> list[dict[str, Any]]:
+    async def run_pipeline(self, jd_text: str, custom_weights: dict[str, float] | None = None) -> list[dict[str, Any]]:
         """
         Execute the full Recruiter Intelligence pipeline.
         """
@@ -116,7 +116,8 @@ class RecruiterAgent:
             jd_skills=jd_parsed["skills"],
             jd_years=jd_parsed["years_experience"],
             jd_location=jd_parsed["location"],
-            require_degree=jd_parsed.get("require_degree", False)
+            require_degree=jd_parsed.get("require_degree", False),
+            custom_weights=custom_weights
         )
 
         # 5. Take Top K
