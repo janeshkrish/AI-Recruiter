@@ -1,94 +1,85 @@
 """
-AI Recruiter Brain — FastAPI Backend
-======================================
+FastAPI Backend
+================
 
-REST API endpoints for the recruitment ranking system.
-
-Endpoints:
-    POST /api/rank         — Submit JD, trigger full pipeline
-    GET  /api/candidates/{id}       — Get candidate detail
-    GET  /api/candidates/{id}/explain  — Get explainability report
-    POST /api/jd/parse     — Parse JD only (Agent 1)
-    GET  /api/status       — Health check and pipeline status
+REST API endpoints for the AI Recruiter system.
+Maintains in-memory FAISS index and candidate metadata.
 """
 
 from __future__ import annotations
 
-import asyncio
-import time
+import os
 from contextlib import asynccontextmanager
-from typing import Optional
+from typing import Any
 
-from fastapi import BackgroundTasks, FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from loguru import logger
+from pydantic import BaseModel, Field
 
+from recruiter_brain.agents.recruiter_agent import RecruiterAgent
 from recruiter_brain.config import get_settings
-from recruiter_brain.data.models import (
-    CandidateProfile,
-    CandidateRanking,
-    Explanation,
-    HealthResponse,
-    RankRequest,
-    RankResponse,
-    RoleParsedOutput,
-)
-from recruiter_brain.scoring.explainability import ExplainabilityEngine
-from recruiter_brain.scoring.ranking_engine import HybridRankingEngine
+from recruiter_brain.data.dataset_loader import DatasetLoader
+from recruiter_brain.data.dataset_preprocessor import DatasetPreprocessor
+from recruiter_brain.embeddings.embedding_service import EmbeddingService
+from recruiter_brain.embeddings.faiss_store import FAISSVectorStore
 
 
-# ---------------------------------------------------------------------------
-# Global state
-# ---------------------------------------------------------------------------
-
-engine: Optional[HybridRankingEngine] = None
-explainer: Optional[ExplainabilityEngine] = None
-last_rank_result: Optional[RankResponse] = None
-pipeline_status: dict = {"state": "idle", "message": "Ready"}
-
-
-async def initialize_engine(num_candidates: int = 1000) -> None:
-    """Initialize the ranking engine and index candidates."""
-    global engine, explainer
-
-    from recruiter_brain.data.generate_synthetic_data import load_candidates
-
-    logger.info("Initializing ranking engine...")
-    engine = HybridRankingEngine()
-    explainer = ExplainabilityEngine(engine.potential_agent)
-
-    # Load and index candidates
-    candidates = load_candidates(limit=num_candidates)
-    engine.index_candidates(candidates)
-    logger.info(f"✓ Engine ready with {len(candidates):,} candidates")
+# Global instances initialized during startup
+app_state: dict[str, Any] = {}
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Application lifespan handler."""
-    # Startup
-    logger.info("Starting AI Recruiter Brain API...")
-    await initialize_engine(num_candidates=1000)
+    """Lifecycle manager: initialize models and load dataset into memory/FAISS."""
+    logger.info("Initializing AI Recruiter Engine...")
+    settings = get_settings()
+    
+    # 1. Initialize core services
+    embedding_service = EmbeddingService()
+    vector_store = FAISSVectorStore()
+    
+    # 2. If FAISS is empty, build it from the dataset
+    if vector_store.is_empty():
+        logger.info("FAISS index empty. Building from dataset...")
+        loader = DatasetLoader()
+        preprocessor = DatasetPreprocessor()
+        
+        # Load batch of candidates (chunking is better but we load all if limit=-1)
+        candidates = loader.load_candidates_batch(limit=settings.dataset.chunk_size)
+        preprocessed = preprocessor.preprocess_batch(candidates)
+        
+        if not preprocessed:
+            logger.warning("No candidates loaded to index!")
+        else:
+            embeddings = embedding_service.generate_candidate_embeddings(preprocessed)
+            vector_store.add_embeddings(embeddings, preprocessed)
+            vector_store.save()
+            
+    # 3. Initialize Agent
+    agent = RecruiterAgent(vector_store=vector_store, embedding_service=embedding_service)
+    
+    # Store in global state
+    app_state["agent"] = agent
+    app_state["vector_store"] = vector_store
+    
+    logger.info("AI Recruiter Engine Ready.")
+    
     yield
-    # Shutdown
-    logger.info("Shutting down AI Recruiter Brain API...")
+    
+    # Cleanup
+    logger.info("Shutting down engine...")
+    app_state.clear()
 
-
-# ---------------------------------------------------------------------------
-# FastAPI App
-# ---------------------------------------------------------------------------
 
 app = FastAPI(
-    title="AI Recruiter Brain",
-    description=(
-        "Multi-Agent Recruitment Intelligence System — "
-        "Ranks candidates using 6 specialized AI agents."
-    ),
-    version="1.0.0",
-    lifespan=lifespan,
+    title="AI Recruiter Brain API",
+    description="Multi-dimensional candidate ranking system using FAISS and real datasets.",
+    version="2.0.0",
+    lifespan=lifespan
 )
 
-# CORS for Streamlit
+# Allow CORS for UI
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -98,149 +89,72 @@ app.add_middleware(
 )
 
 
-# ---------------------------------------------------------------------------
-# Endpoints
-# ---------------------------------------------------------------------------
+# --- Request/Response Models ---
 
-@app.get("/api/status", response_model=HealthResponse)
+class RankRequest(BaseModel):
+    job_description: str = Field(..., description="The raw JD text")
+
+
+class CandidateScore(BaseModel):
+    candidate_id: str
+    score: float
+    skill_match: float
+    experience_match: float
+    education_match: float
+    semantic_similarity: float
+    location_match: float
+    reasoning: str
+
+
+class RankResponse(BaseModel):
+    ranked_candidates: list[CandidateScore]
+
+
+# --- Endpoints ---
+
+@app.get("/api/health")
 async def health_check():
-    """Health check and system status."""
-    return HealthResponse(
-        status="healthy" if engine else "initializing",
-        version="1.0.0",
-        qdrant_connected=engine is not None and engine.vector_store.get_count() > 0,
-        model_loaded=engine is not None,
-        candidates_indexed=engine.vector_store.get_count() if engine else 0,
-    )
-
-
-@app.post("/api/jd/parse", response_model=RoleParsedOutput)
-async def parse_job_description(request: RankRequest):
-    """Parse a job description using Agent 1 (Role Understanding)."""
-    if engine is None:
-        raise HTTPException(status_code=503, detail="Engine not initialized")
-
-    parsed = await engine.role_agent.parse(request.job_description)
-    return parsed
+    """Service health status."""
+    return {"status": "healthy", "vector_store_initialized": "vector_store" in app_state}
 
 
 @app.post("/api/rank", response_model=RankResponse)
 async def rank_candidates(request: RankRequest):
-    """
-    Execute the full ranking pipeline.
-
-    Triggers all 4 stages and returns top-K ranked candidates
-    with scores and pipeline statistics.
-    """
-    global last_rank_result, pipeline_status
-
-    if engine is None:
-        raise HTTPException(status_code=503, detail="Engine not initialized")
-
-    pipeline_status = {"state": "running", "message": "Pipeline in progress..."}
-
+    """Execute the full ranking pipeline for the given Job Description."""
+    agent: RecruiterAgent = app_state.get("agent")
+    if not agent:
+        raise HTTPException(status_code=503, detail="Agent not initialized")
+        
     try:
-        start = time.time()
-
-        result = await engine.rank(
-            job_description=request.job_description,
-            job_title=request.job_title,
-            top_k=request.top_k,
-            custom_weights=request.weights,
-        )
-
-        elapsed = time.time() - start
-        pipeline_status = {
-            "state": "complete",
-            "message": f"Pipeline completed in {elapsed:.1f}s",
-            "elapsed_seconds": elapsed,
-        }
-
-        last_rank_result = result
-        return result
-
+        results = await agent.run_pipeline(request.job_description)
+        # Results are dicts mapping to CandidateScore
+        return {"ranked_candidates": results}
     except Exception as e:
-        pipeline_status = {"state": "error", "message": str(e)}
-        logger.error(f"Pipeline failed: {e}")
+        logger.exception("Ranking failed")
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.get("/api/candidates/{candidate_id}")
-async def get_candidate(candidate_id: str):
-    """Get detailed candidate profile with all scores."""
-    if engine is None:
-        raise HTTPException(status_code=503, detail="Engine not initialized")
+@app.get("/api/candidates")
+async def get_candidates(limit: int = 100):
+    """Return dataset candidates (metadata)."""
+    vs: FAISSVectorStore = app_state.get("vector_store")
+    if not vs or not vs.metadata:
+        return {"candidates": []}
+        
+    return {"candidates": [m for m in vs.metadata[:limit]]}
 
-    candidate = engine.get_candidate(candidate_id)
-    if candidate is None:
-        raise HTTPException(status_code=404, detail="Candidate not found")
 
-    scores = engine.get_candidate_scores(candidate_id)
-
+@app.get("/api/jobs")
+async def get_jobs():
+    """Return available jobs. For this challenge, we just have the one JD file."""
+    # We could parse the job_description.docx here, but we'll return a static reference
     return {
-        "candidate": candidate.model_dump(),
-        "scores": scores.model_dump() if scores else None,
+        "jobs": [
+            {
+                "id": "JOB_001",
+                "title": "Senior AI Engineer — Founding Team",
+                "location": "Pune/Noida, India",
+                "file": "job_description.docx"
+            }
+        ]
     }
-
-
-@app.get("/api/candidates/{candidate_id}/explain", response_model=Explanation)
-async def explain_candidate(candidate_id: str):
-    """Get explainability report for a candidate."""
-    if engine is None or explainer is None:
-        raise HTTPException(status_code=503, detail="Engine not initialized")
-
-    if last_rank_result is None:
-        raise HTTPException(
-            status_code=400,
-            detail="Run /api/rank first to generate rankings",
-        )
-
-    candidate = engine.get_candidate(candidate_id)
-    if candidate is None:
-        raise HTTPException(status_code=404, detail="Candidate not found")
-
-    scores = engine.get_candidate_scores(candidate_id)
-    if scores is None:
-        raise HTTPException(
-            status_code=400,
-            detail="Candidate has not been scored yet",
-        )
-
-    explanation = explainer.explain(
-        candidate=candidate,
-        scores=scores,
-        parsed_role=last_rank_result.parsed_role,
-    )
-
-    return explanation
-
-
-@app.get("/api/pipeline/status")
-async def get_pipeline_status():
-    """Get current pipeline execution status."""
-    return pipeline_status
-
-
-@app.get("/api/rankings")
-async def get_last_rankings():
-    """Get the last ranking results."""
-    if last_rank_result is None:
-        return {"message": "No rankings available. Run /api/rank first."}
-    return last_rank_result
-
-
-# ---------------------------------------------------------------------------
-# Main entry point
-# ---------------------------------------------------------------------------
-
-if __name__ == "__main__":
-    import uvicorn
-
-    settings = get_settings()
-    uvicorn.run(
-        "recruiter_brain.api.main:app",
-        host="0.0.0.0",
-        port=8000,
-        reload=True,
-        log_level="info",
-    )

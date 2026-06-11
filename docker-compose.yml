@@ -2,96 +2,54 @@
 # AI Recruiter Brain — Docker Compose
 # ==============================================================================
 # Usage:
-#   docker-compose up -d              # Start all services
-#   docker-compose up -d --build      # Rebuild and start
-#   docker-compose down               # Stop all services
-#   docker-compose logs -f api        # Follow API logs
+#   docker-compose up -d              # Run CPU version
+# ==============================================================================
 
-version: "3.9"
+version: '3.8'
 
 services:
-  # --------------------------------------------------------------------------
-  # Qdrant Vector Database
-  # --------------------------------------------------------------------------
-  qdrant:
-    image: qdrant/qdrant:latest
-    container_name: recruiter-qdrant
-    ports:
-      - "6333:6333"
-      - "6334:6334"
-    volumes:
-      - qdrant_data:/qdrant/storage
-    environment:
-      - QDRANT__SERVICE__GRPC_PORT=6334
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:6333/healthz"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  # --------------------------------------------------------------------------
-  # FastAPI Backend
-  # --------------------------------------------------------------------------
+  # ----------------------------------------------------------------------------
+  # FastAPI Backend (Ranking Engine & FAISS)
+  # ----------------------------------------------------------------------------
   api:
     build:
       context: .
+      dockerfile: Dockerfile
       target: api
     container_name: recruiter-api
     ports:
       - "8000:8000"
-    env_file:
-      - .env
-    environment:
-      - QDRANT_HOST=qdrant
-      - QDRANT_PORT=6333
-      - QDRANT_USE_INMEMORY=false
-    depends_on:
-      qdrant:
-        condition: service_healthy
     volumes:
-      - model_cache:/root/.cache
-      - ./data:/app/data
+      - ./.cache:/app/.cache
+      - ./[PUB] India_runs_data_and_ai_challenge:/app/[PUB] India_runs_data_and_ai_challenge
+      - ./.env:/app/.env
+    environment:
+      - DATASET_CACHE_DIR=/app/.cache
+      - PYTHONUNBUFFERED=1
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
-  # --------------------------------------------------------------------------
+  # ----------------------------------------------------------------------------
   # Streamlit Dashboard
-  # --------------------------------------------------------------------------
-  streamlit:
+  # ----------------------------------------------------------------------------
+  ui:
     build:
       context: .
-      target: streamlit
-    container_name: recruiter-streamlit
+      dockerfile: Dockerfile
+      target: ui
+    container_name: recruiter-ui
     ports:
       - "8501:8501"
-    env_file:
-      - .env
-    environment:
-      - QDRANT_HOST=qdrant
-      - QDRANT_PORT=6333
-      - QDRANT_USE_INMEMORY=false
-    depends_on:
-      - api
     volumes:
-      - model_cache:/root/.cache
-      - ./data:/app/data
+      - ./recruiter_brain/ui:/app/recruiter_brain/ui
+      - ./.env:/app/.env
+    environment:
+      - API_URL=http://api:8000
+    depends_on:
+      api:
+        condition: service_healthy
     restart: unless-stopped
-
-volumes:
-  qdrant_data:
-    driver: local
-  model_cache:
-    driver: local
-
-# ==============================================================================
-# GPU Support (uncomment to enable)
-# ==============================================================================
-# services:
-#   api:
-#     deploy:
-#       resources:
-#         reservations:
-#           devices:
-#             - driver: nvidia
-#               count: 1
-#               capabilities: [gpu]

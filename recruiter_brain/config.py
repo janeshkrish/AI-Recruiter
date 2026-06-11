@@ -1,131 +1,125 @@
 """
-AI Recruiter Brain — Central Configuration
-===========================================
+Configuration
+==============
 
-All configuration is loaded from environment variables (.env file)
-with sensible defaults for local development.
+Centralized settings for the AI Recruiter Brain using Pydantic BaseSettings.
+Configurable via environment variables or .env file.
 """
 
 from __future__ import annotations
 
 import os
-from pathlib import Path
+from functools import lru_cache
 from typing import Optional
 
-from pydantic import Field
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
-# ---------------------------------------------------------------------------
-# Resolve project root
-# ---------------------------------------------------------------------------
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
-DATA_DIR = PROJECT_ROOT / "data"
+class DatasetSettings(BaseSettings):
+    """Dataset configuration settings."""
 
+    # Path to the dataset directory
+    path: str = "[PUB] India_runs_data_and_ai_challenge/[PUB] India_runs_data_and_ai_challenge/India_runs_data_and_ai_challenge"
+    candidates_file: str = "candidates.jsonl"
+    cache_dir: str = ".cache"
+    
+    # Batch processing
+    chunk_size: int = 5000
 
-class LLMSettings(BaseSettings):
-    """LLM provider configuration."""
-
-    provider: str = Field(default="openai", alias="LLM_PROVIDER")
-    openai_api_key: str = Field(default="", alias="OPENAI_API_KEY")
-    openai_model: str = Field(default="gpt-4.1", alias="OPENAI_MODEL")
-    deepseek_api_key: str = Field(default="", alias="DEEPSEEK_API_KEY")
-    deepseek_base_url: str = Field(
-        default="https://api.deepseek.com/v1", alias="DEEPSEEK_BASE_URL"
+    model_config = SettingsConfigDict(
+        env_prefix="DATASET_", env_file=".env", extra="ignore"
     )
-    deepseek_model: str = Field(default="deepseek-chat", alias="DEEPSEEK_MODEL")
-    simulation_mode: bool = Field(default=True, alias="SIMULATION_MODE")
-
-    model_config = {"env_file": str(PROJECT_ROOT / ".env"), "extra": "ignore"}
 
 
 class EmbeddingSettings(BaseSettings):
     """Embedding model configuration."""
 
-    model_name: str = Field(
-        default="BAAI/bge-large-en-v1.5", alias="EMBEDDING_MODEL"
+    # We use all-MiniLM-L6-v2 by default as it's fast and sufficient for FAISS
+    model_name: str = "sentence-transformers/all-MiniLM-L6-v2"
+    dimension: int = 384
+    batch_size: int = 128
+    device: str = "cpu"  # Auto-detected if cuda is available
+
+    model_config = SettingsConfigDict(
+        env_prefix="EMBEDDING_", env_file=".env", extra="ignore"
     )
-    dimension: int = Field(default=1024, alias="EMBEDDING_DIMENSION")
-    batch_size: int = Field(default=64, alias="EMBEDDING_BATCH_SIZE")
-
-    model_config = {"env_file": str(PROJECT_ROOT / ".env"), "extra": "ignore"}
 
 
-class QdrantSettings(BaseSettings):
-    """Qdrant vector database configuration."""
+class LLMSettings(BaseSettings):
+    """LLM Provider Configuration."""
 
-    host: str = Field(default="localhost", alias="QDRANT_HOST")
-    port: int = Field(default=6333, alias="QDRANT_PORT")
-    collection: str = Field(default="candidates", alias="QDRANT_COLLECTION")
-    use_inmemory: bool = Field(default=True, alias="QDRANT_USE_INMEMORY")
+    provider: str = "openai"  # openai or deepseek
+    openai_api_key: Optional[str] = None
+    deepseek_api_key: Optional[str] = None
 
-    model_config = {"env_file": str(PROJECT_ROOT / ".env"), "extra": "ignore"}
+    # Model names
+    openai_model: str = "gpt-4o"
+    deepseek_model: str = "deepseek-chat"
 
+    # Set to True to skip real API calls during dev
+    simulation_mode: bool = True
 
-class PipelineSettings(BaseSettings):
-    """Pipeline stage thresholds."""
-
-    stage1_top_k: int = Field(default=2000, alias="STAGE1_TOP_K")
-    stage2_top_k: int = Field(default=500, alias="STAGE2_TOP_K")
-    stage3_top_k: int = Field(default=200, alias="STAGE3_TOP_K")
-    stage4_top_k: int = Field(default=25, alias="STAGE4_TOP_K")
-
-    model_config = {"env_file": str(PROJECT_ROOT / ".env"), "extra": "ignore"}
+    model_config = SettingsConfigDict(
+        env_prefix="LLM_", env_file=".env", extra="ignore"
+    )
 
 
 class ScoringWeights(BaseSettings):
-    """Agent score weights for final ranking."""
+    """
+    Weights for the 5-dimensional scoring model.
+    Must sum to 1.0 (or 100%).
+    """
 
-    technical: float = Field(default=0.35, alias="WEIGHT_TECHNICAL")
-    career: float = Field(default=0.20, alias="WEIGHT_CAREER")
-    behavioral: float = Field(default=0.15, alias="WEIGHT_BEHAVIORAL")
-    potential: float = Field(default=0.15, alias="WEIGHT_POTENTIAL")
-    recruiter: float = Field(default=0.15, alias="WEIGHT_RECRUITER")
-
-    model_config = {"env_file": str(PROJECT_ROOT / ".env"), "extra": "ignore"}
+    skill_match: float = 0.40
+    experience_match: float = 0.25
+    education_match: float = 0.10
+    semantic_similarity: float = 0.20
+    location_match: float = 0.05
 
     @property
     def as_dict(self) -> dict[str, float]:
         return {
-            "technical": self.technical,
-            "career": self.career,
-            "behavioral": self.behavioral,
-            "potential": self.potential,
-            "recruiter": self.recruiter,
+            "skill_match": self.skill_match,
+            "experience_match": self.experience_match,
+            "education_match": self.education_match,
+            "semantic_similarity": self.semantic_similarity,
+            "location_match": self.location_match,
         }
 
-
-class LoggingSettings(BaseSettings):
-    """Logging configuration."""
-
-    level: str = Field(default="INFO", alias="LOG_LEVEL")
-    log_file: str = Field(default="recruiter_brain.log", alias="LOG_FILE")
-
-    model_config = {"env_file": str(PROJECT_ROOT / ".env"), "extra": "ignore"}
+    model_config = SettingsConfigDict(
+        env_prefix="WEIGHT_", env_file=".env", extra="ignore"
+    )
 
 
-class Settings:
-    """Aggregated settings singleton."""
+class PipelineSettings(BaseSettings):
+    """Pipeline configuration."""
+    
+    top_k_results: int = 100
 
-    _instance: Optional["Settings"] = None
-
-    def __new__(cls) -> "Settings":
-        if cls._instance is None:
-            cls._instance = super().__new__(cls)
-            cls._instance._init_settings()
-        return cls._instance
-
-    def _init_settings(self) -> None:
-        self.llm = LLMSettings()
-        self.embedding = EmbeddingSettings()
-        self.qdrant = QdrantSettings()
-        self.pipeline = PipelineSettings()
-        self.weights = ScoringWeights()
-        self.logging = LoggingSettings()
-        self.project_root = PROJECT_ROOT
-        self.data_dir = DATA_DIR
+    model_config = SettingsConfigDict(
+        env_prefix="PIPELINE_", env_file=".env", extra="ignore"
+    )
 
 
+class Settings(BaseSettings):
+    """Global application settings."""
+
+    dataset: DatasetSettings = DatasetSettings()
+    embeddings: EmbeddingSettings = EmbeddingSettings()
+    llm: LLMSettings = LLMSettings()
+    weights: ScoringWeights = ScoringWeights()
+    pipeline: PipelineSettings = PipelineSettings()
+
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+
+
+@lru_cache()
 def get_settings() -> Settings:
-    """Get the global settings instance."""
-    return Settings()
+    """
+    Get the application settings singleton.
+    Cached to prevent re-reading the .env file on every call.
+    """
+    # Ensure cache dir exists
+    settings = Settings()
+    os.makedirs(settings.dataset.cache_dir, exist_ok=True)
+    return settings
