@@ -13,6 +13,13 @@ from typing import Any
 
 from loguru import logger
 from openai import AsyncOpenAI
+from cachetools import cached, TTLCache
+import hashlib
+
+# Cache for JD Parsing to avoid repeated LLM calls (1 hour TTL)
+jd_cache = TTLCache(maxsize=100, ttl=3600)
+# Cache for FAISS Retrieval (1 hour TTL)
+retrieval_cache = TTLCache(maxsize=100, ttl=3600)
 
 from recruiter_brain.config import get_settings
 from recruiter_brain.embeddings.faiss_store import FAISSVectorStore
@@ -36,9 +43,15 @@ class RecruiterAgent:
         Extract structured and HIDDEN requirements from unstructured JD text.
         """
         logger.info("Parsing Job Description for Hidden Intelligence...")
+        jd_hash = hashlib.md5(jd_text.encode('utf-8')).hexdigest()
         
+        if jd_hash in jd_cache:
+            return jd_cache[jd_hash]
+            
         if self.settings.llm.simulation_mode or not self.llm_client:
-            return self._heuristic_jd_parse(jd_text)
+            res = self._heuristic_jd_parse(jd_text)
+            jd_cache[jd_hash] = res
+            return res
 
         prompt = f"""
         Act as an Elite Recruiter. Analyze this job description and extract:
@@ -63,6 +76,7 @@ class RecruiterAgent:
             parsed = json.loads(response.choices[0].message.content)
             if "skills" not in parsed:
                 parsed["skills"] = []
+            jd_cache[jd_hash] = parsed
             return parsed
         except Exception as e:
             logger.error(f"LLM Parsing failed: {e}. Falling back to heuristics.")
@@ -107,7 +121,14 @@ class RecruiterAgent:
 
         # 3. Retrieve Top Candidates via FAISS (Pre-filter)
         fetch_k = self.settings.pipeline.top_k_results * 5
-        retrieved_candidates = self.vector_store.search(query_embedding, top_k=fetch_k)
+        query_hash = hashlib.md5(jd_query.encode('utf-8')).hexdigest()
+        
+        if query_hash in retrieval_cache:
+            retrieved_candidates = retrieval_cache[query_hash]
+        else:
+            retrieved_candidates = self.vector_store.search(query_embedding, top_k=fetch_k)
+            retrieval_cache[query_hash] = retrieved_candidates
+            
         logger.info(f"Retrieved top {len(retrieved_candidates)} candidates via FAISS.")
 
         # 4. Multi-Agent Jury Evaluation

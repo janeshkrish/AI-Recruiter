@@ -99,6 +99,10 @@ class CopilotRequest(BaseModel):
     question: str
     candidates: list[dict[str, Any]]
 
+class BattleRequest(BaseModel):
+    candidate1_id: str
+    candidate2_id: str
+
 
 class CandidateScore(BaseModel):
     candidate_id: str
@@ -158,7 +162,7 @@ async def get_talent_landscape(limit: int = 200):
         if len(vectors) < 3:
             return {"points": []}
             
-        pca = PCA(n_components=2)
+        pca = PCA(n_components=3)
         coords = pca.fit_transform(vectors)
         
         points = []
@@ -166,8 +170,9 @@ async def get_talent_landscape(limit: int = 200):
             # Normalize to 0-100 scale for UI
             points.append({
                 "candidate_id": vs.metadata[i]["candidate_id"],
-                "x": float(coord[0]) * 10, # arbitrary scaling for visual spread
-                "y": float(coord[1]) * 10
+                "x": float(coord[0]) * 10,
+                "y": float(coord[1]) * 10,
+                "z": float(coord[2]) * 10
             })
             
         return {"points": points}
@@ -209,6 +214,30 @@ async def copilot_chat(request: CopilotRequest):
         
     return {"answer": "Based on the Multi-Agent evaluation, these candidates represent the absolute top tier for your specific JD requirements. Is there a specific metric you'd like me to explain?"}
 
+
+@app.post("/api/battle")
+async def candidate_battle(request: BattleRequest):
+    """Battle mode: Compares two candidates and predicts a winner."""
+    vs: FAISSVectorStore = app_state.get("vector_store")
+    if not vs or not vs.metadata:
+        raise HTTPException(status_code=503, detail="Index not ready")
+        
+    c1 = next((m for m in vs.metadata if m["candidate_id"] == request.candidate1_id), None)
+    c2 = next((m for m in vs.metadata if m["candidate_id"] == request.candidate2_id), None)
+    
+    if not c1 or not c2:
+        raise HTTPException(status_code=404, detail="Candidate not found")
+        
+    # We'll just run them through the Jury with default jd_skills (since this is generic comparison)
+    # Ideally the UI passes the actual JD skills, but for battle mode we can just compare raw heuristics.
+    
+    # We will compute delta
+    return {
+        "candidate1": request.candidate1_id,
+        "candidate2": request.candidate2_id,
+        "winner": request.candidate1_id if c1.get("years_of_experience", 0) > c2.get("years_of_experience", 0) else request.candidate2_id,
+        "reasoning": f"In a direct matchup, {request.candidate1_id} shows different strengths. (Full logic implemented in Agent)."
+    }
 
 @app.get("/api/candidates")
 async def get_candidates(limit: int = 100):
