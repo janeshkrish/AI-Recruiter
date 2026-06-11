@@ -122,9 +122,10 @@ class RecruiterAgent:
         # 5. Take Top K
         top_ranked = ranked[:self.settings.pipeline.top_k_results]
         
-        # Cleanup massive raw profiles before API return
+        # Clean up massive raw profiles but keep a structured dict for the UI
         for c in top_ranked:
             if "raw_profile" in c:
+                c["candidate_details"] = c["raw_profile"].model_dump()
                 del c["raw_profile"]
 
         logger.info(f"Pipeline complete. Returning {len(top_ranked)} thoroughly vetted candidates.")

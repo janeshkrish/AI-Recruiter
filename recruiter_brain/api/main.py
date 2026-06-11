@@ -105,6 +105,7 @@ class CandidateScore(BaseModel):
     potential_score: float = 0.0
     transferable_matches: int = 0
     reasoning: str
+    candidate_details: dict[str, Any] = Field(default_factory=dict)
 
 
 class RankResponse(BaseModel):
