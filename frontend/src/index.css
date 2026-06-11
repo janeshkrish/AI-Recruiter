@@ -3,32 +3,40 @@
 @theme {
   --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   
-  --color-bg-base: #030712;
-  --color-bg-glass: rgba(17, 24, 39, 0.6);
-  --color-bg-glass-heavy: rgba(3, 7, 18, 0.85);
+  --color-bg-base: #FAFAFA;
+  --color-bg-surface: #FFFFFF;
+  --color-bg-surface-hover: #F1F5F9;
   
-  --color-border-glass: rgba(255, 255, 255, 0.08);
-  --color-border-glow: rgba(99, 102, 241, 0.3);
+  --color-border-subtle: #E2E8F0;
+  --color-border-focus: #CBD5E1;
   
-  --color-neon-blue: #3B82F6;
-  --color-neon-purple: #8B5CF6;
-  --color-neon-pink: #EC4899;
-  --color-neon-emerald: #10B981;
-  --color-neon-amber: #F59E0B;
+  --color-text-primary: #0F172A;
+  --color-text-secondary: #475569;
+  --color-text-tertiary: #94A3B8;
+  
+  --color-accent-blue: #2563EB;
+  --color-accent-blue-light: #EFF6FF;
+  
+  --color-accent-emerald: #059669;
+  --color-accent-emerald-light: #ECFDF5;
+  
+  --color-accent-purple: #7C3AED;
+  --color-accent-purple-light: #F5F3FF;
 }
 
 @layer base {
   body {
     background-color: var(--color-bg-base);
-    color: #F8FAFC;
+    color: var(--color-text-primary);
     font-family: var(--font-sans);
     overflow-x: hidden;
     margin: 0;
     padding: 0;
+    -webkit-font-smoothing: antialiased;
   }
 }
 
-/* Custom Scrollbar for Mac-like feel */
+/* Custom Scrollbar for clean UI */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -37,54 +45,17 @@
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.1);
+  background: #CBD5E1;
   border-radius: 10px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.2);
+  background: #94A3B8;
 }
 
-/* Aurora Mesh Background Utilities */
-.aurora-bg {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  z-index: -1;
-  background: #030712;
-  overflow: hidden;
-}
-
-.aurora-blob {
-  position: absolute;
-  filter: blur(120px);
-  opacity: 0.4;
-  border-radius: 50%;
-  animation: float 20s infinite ease-in-out alternate;
-}
-
-.blob-1 { top: -10%; left: -10%; width: 50vw; height: 50vw; background: var(--color-neon-purple); animation-delay: 0s; }
-.blob-2 { top: 40%; right: -20%; width: 40vw; height: 40vw; background: var(--color-neon-blue); animation-delay: -5s; }
-.blob-3 { bottom: -20%; left: 20%; width: 60vw; height: 60vw; background: var(--color-neon-emerald); animation-delay: -10s; opacity: 0.2;}
-
-@keyframes float {
-  0% { transform: translate(0, 0) scale(1); }
-  50% { transform: translate(10%, 10%) scale(1.1); }
-  100% { transform: translate(-5%, 5%) scale(0.9); }
-}
-
-/* Glassmorphism Panel */
-.glass-panel {
-  background: var(--color-bg-glass);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
-  border: 1px solid var(--color-border-glass);
-  border-radius: 20px;
-  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.4);
-}
-
-/* Glowing Text */
-.text-glow {
-  text-shadow: 0 0 20px currentColor;
+/* Base utility for panels */
+.panel {
+  background-color: var(--color-bg-surface);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 12px;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
 }
