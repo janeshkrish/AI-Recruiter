@@ -23,6 +23,7 @@ from recruiter_brain.data.dataset_loader import DatasetLoader
 from recruiter_brain.data.dataset_preprocessor import DatasetPreprocessor
 from recruiter_brain.embeddings.embedding_service import EmbeddingService
 from recruiter_brain.embeddings.faiss_store import FAISSVectorStore
+from recruiter_brain.data.sqlite_store import SQLiteStore
 
 
 # Global instances initialized during startup
@@ -38,6 +39,11 @@ async def lifespan(app: FastAPI):
     # 1. Initialize core services
     embedding_service = EmbeddingService()
     vector_store = FAISSVectorStore()
+    
+    # 1.5 Initialize SQLite Cache
+    logger.info("Initializing SQLite Cache...")
+    sqlite_store = SQLiteStore()
+    app_state["sqlite_store"] = sqlite_store
     
     # 2. If FAISS is empty, build it from the dataset
     if vector_store.is_empty():
@@ -239,14 +245,46 @@ async def candidate_battle(request: BattleRequest):
         "reasoning": f"In a direct matchup, {request.candidate1_id} shows different strengths. (Full logic implemented in Agent)."
     }
 
+@app.get("/api/stats")
+async def get_stats():
+    """Return dataset statistics."""
+    sqlite_store: SQLiteStore = app_state.get("sqlite_store")
+    if not sqlite_store:
+        raise HTTPException(status_code=503, detail="Database not ready")
+    return sqlite_store.get_stats()
+
 @app.get("/api/candidates")
-async def get_candidates(limit: int = 100):
-    """Return dataset candidates (metadata)."""
-    vs: FAISSVectorStore = app_state.get("vector_store")
-    if not vs or not vs.metadata:
-        return {"candidates": []}
+async def get_candidates(
+    page: int = 1, 
+    limit: int = 25, 
+    search: str = "",
+    skills: str = "",
+    min_experience: float = 0.0,
+    current_role: str = ""
+):
+    """Return dataset candidates with server-side pagination."""
+    sqlite_store: SQLiteStore = app_state.get("sqlite_store")
+    if not sqlite_store:
+        raise HTTPException(status_code=503, detail="Database not ready")
         
-    return {"candidates": [m for m in vs.metadata[:limit]]}
+    filters = {
+        "skills": skills,
+        "min_experience": min_experience,
+        "current_role": current_role
+    }
+    return sqlite_store.get_paginated_candidates(page=page, limit=limit, search=search, filters=filters)
+
+@app.get("/api/candidates/{candidate_id}")
+async def get_candidate(candidate_id: str):
+    """Return full raw data for a specific candidate."""
+    sqlite_store: SQLiteStore = app_state.get("sqlite_store")
+    if not sqlite_store:
+        raise HTTPException(status_code=503, detail="Database not ready")
+        
+    data = sqlite_store.get_candidate_by_id(candidate_id)
+    if not data:
+        raise HTTPException(status_code=404, detail="Candidate not found")
+    return data
 
 
 @app.get("/api/jobs")

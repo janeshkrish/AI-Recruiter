@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronDown, ChevronUp, Network, Briefcase, CheckCircle, AlertTriangle } from 'lucide-react';
+import { ChevronDown, ChevronUp, Network, Briefcase, CheckCircle, AlertTriangle, ExternalLink } from 'lucide-react';
 import type { Candidate } from '../App';
 import SkillGraph from './SkillGraph';
+import CandidateProfileModal from './CandidateProfileModal';
 
 interface Props {
   candidate: Candidate;
@@ -10,6 +11,7 @@ interface Props {
 
 export default function CandidateDetail({ candidate }: Props) {
   const [expandedSection, setExpandedSection] = useState<string | null>(null);
+  const [showModal, setShowModal] = useState(false);
 
   const toggleSection = (section: string) => {
     setExpandedSection(prev => prev === section ? null : section);
@@ -23,44 +25,60 @@ export default function CandidateDetail({ candidate }: Props) {
     <div className="max-w-4xl mx-auto p-8 space-y-6">
       
       {/* Top Header Card */}
-      <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
-        <div className="flex justify-between items-start mb-6">
-          <div className="flex gap-4 items-center">
-            <div className="w-16 h-16 rounded-2xl bg-blue-50 border border-blue-100 flex items-center justify-center text-2xl font-bold text-blue-600">
+      <div className="bg-gradient-to-br from-white to-slate-50 border border-slate-200 rounded-2xl p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] relative overflow-hidden">
+        {/* Subtle background glow */}
+        <div className="absolute -top-24 -right-24 w-48 h-48 bg-blue-400 rounded-full mix-blend-multiply filter blur-3xl opacity-10 pointer-events-none"></div>
+        <div className="absolute -bottom-24 -left-24 w-48 h-48 bg-emerald-400 rounded-full mix-blend-multiply filter blur-3xl opacity-10 pointer-events-none"></div>
+
+        <div className="flex justify-between items-start mb-6 relative z-10">
+          <div className="flex gap-5 items-center">
+            <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 shadow-lg shadow-blue-500/20 flex items-center justify-center text-3xl font-black text-white">
               {candidate.candidate_details?.profile?.anonymized_name?.charAt(0) || 'C'}
             </div>
             <div>
-              <h2 className="text-2xl font-bold text-slate-900">{candidate.candidate_details?.profile?.anonymized_name || candidate.candidate_id}</h2>
-              <p className="text-slate-500 font-medium">{candidate.candidate_details?.profile?.current_title || 'AI Engineer'}</p>
+              <h2 className="text-3xl font-bold text-slate-900 tracking-tight">{candidate.candidate_details?.profile?.anonymized_name || candidate.candidate_id}</h2>
+              <p className="text-blue-600 font-semibold mt-1">{candidate.candidate_details?.profile?.current_title || 'AI Engineer'}</p>
+              <div className="flex items-center gap-2 mt-2 text-sm text-slate-500">
+                <Briefcase size={14}/> {candidate.candidate_details?.profile?.years_of_experience || 0} years exp
+              </div>
             </div>
           </div>
-          <div className="flex gap-4">
-            <div className="text-center px-4 border-r border-slate-100">
-              <div className="text-2xl font-black text-emerald-600">{prob}%</div>
-              <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Hiring Prob</div>
+          <div className="flex gap-6 bg-white/60 backdrop-blur-md border border-slate-100 p-4 rounded-2xl shadow-sm">
+            <div className="text-center px-4 border-r border-slate-200">
+              <div className="text-3xl font-black bg-clip-text text-transparent bg-gradient-to-r from-emerald-500 to-teal-400">{prob}%</div>
+              <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-1">Hiring Prob</div>
             </div>
-            <div className="text-center px-4 border-r border-slate-100">
-              <div className="text-2xl font-black text-amber-500">{candidate.potential_score.toFixed(0)}</div>
-              <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Potential</div>
+            <div className="text-center px-4 border-r border-slate-200">
+              <div className="text-3xl font-black bg-clip-text text-transparent bg-gradient-to-r from-amber-400 to-orange-500">{candidate.potential_score.toFixed(0)}</div>
+              <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-1">Potential</div>
             </div>
             <div className="text-center pl-4">
-              <div className="text-2xl font-black text-blue-600">{candidate.score.toFixed(1)}</div>
-              <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Match Score</div>
+              <div className="text-3xl font-black bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-500">{candidate.score.toFixed(1)}</div>
+              <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-1">Match Score</div>
             </div>
           </div>
         </div>
+        
+        <div className="mb-6 flex justify-end relative z-10">
+           <button 
+             onClick={() => setShowModal(true)}
+             className="px-5 py-2.5 bg-slate-900 hover:bg-black text-white rounded-xl shadow-md hover:shadow-xl transition-all flex items-center gap-2 font-semibold text-sm"
+           >
+             <ExternalLink size={16} /> View Full Profile
+           </button>
+        </div>
 
         {/* Top Skills Quick View */}
-        <div className="mb-6">
-          <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Core Competencies</div>
+        <div className="mb-2 relative z-10">
+          <div className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">Core Competencies</div>
           <div className="flex flex-wrap gap-2">
             {skills.slice(0, 6).map((s: any, idx: number) => (
-              <span key={idx} className="px-2.5 py-1 bg-slate-100 border border-slate-200 rounded-md text-xs font-medium text-slate-700">
+              <span key={idx} className="px-3 py-1.5 bg-white border border-slate-200 shadow-sm rounded-lg text-xs font-semibold text-slate-700 hover:border-blue-300 transition-colors cursor-default">
                 {s.name}
               </span>
             ))}
             {candidate.transferable_matches > 0 && (
-              <span className="px-2.5 py-1 bg-purple-50 border border-purple-200 rounded-md text-xs font-medium text-purple-700">
+              <span className="px-3 py-1.5 bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200 rounded-lg text-xs font-bold text-purple-700 shadow-sm">
                 +{candidate.transferable_matches} Transferable
               </span>
             )}
@@ -70,9 +88,9 @@ export default function CandidateDetail({ candidate }: Props) {
 
       {/* Intelligence Readout (No Scrolling Required) */}
       <div className="grid grid-cols-2 gap-6">
-        <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
-          <h3 className="text-sm font-semibold text-slate-900 mb-4 flex items-center gap-2">
-            <CheckCircle size={16} className="text-emerald-500" /> Why Matched & Strengths
+        <div className="bg-white border-l-4 border-l-emerald-400 border-y border-r border-y-slate-200 border-r-slate-200 rounded-2xl p-6 shadow-sm">
+          <h3 className="text-base font-bold text-slate-900 mb-5 flex items-center gap-2">
+            <CheckCircle size={18} className="text-emerald-500" /> Why Matched & Strengths
           </h3>
           <div className="space-y-3">
             {candidate.reasoning.split(';').map((r, i) => (
@@ -84,10 +102,10 @@ export default function CandidateDetail({ candidate }: Props) {
           </div>
         </div>
 
-        <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm flex flex-col justify-between">
+        <div className="bg-white border-l-4 border-l-rose-400 border-y border-r border-y-slate-200 border-r-slate-200 rounded-2xl p-6 shadow-sm flex flex-col justify-between">
           <div>
-            <h3 className="text-sm font-semibold text-slate-900 mb-4 flex items-center gap-2">
-              <AlertTriangle size={16} className="text-amber-500" /> Risk Factors & Weaknesses
+            <h3 className="text-base font-bold text-slate-900 mb-5 flex items-center gap-2">
+              <AlertTriangle size={18} className="text-rose-500" /> Risk Factors & Weaknesses
             </h3>
             <div className="text-sm text-slate-600">
               {candidate.experience_match < 60 ? (
@@ -160,6 +178,13 @@ export default function CandidateDetail({ candidate }: Props) {
         </div>
 
       </div>
+
+      {showModal && (
+        <CandidateProfileModal 
+          candidateId={candidate.candidate_id} 
+          onClose={() => setShowModal(false)} 
+        />
+      )}
     </div>
   );
 }
