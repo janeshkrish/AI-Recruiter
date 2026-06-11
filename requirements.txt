@@ -1,0 +1,42 @@
+# ==============================================================================
+# AI Recruiter Brain — Dependencies
+# ==============================================================================
+
+# --- Core Framework ---
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+pydantic==2.10.4
+pydantic-settings==2.7.1
+python-dotenv==1.0.1
+
+# --- ML / Embeddings ---
+sentence-transformers==3.3.1
+torch>=2.1.0
+numpy>=1.26.0
+scikit-learn==1.6.1
+
+# --- Vector Database ---
+qdrant-client==1.12.1
+
+# --- LLM ---
+openai==1.58.1
+
+# --- Graph ---
+networkx==3.4.2
+
+# --- UI ---
+streamlit==1.41.1
+plotly==5.24.1
+pandas==2.2.3
+
+# --- Ops & Utilities ---
+loguru==0.7.3
+tenacity==9.0.0
+tqdm==4.67.1
+orjson==3.10.13
+aiohttp==3.11.11
+
+# --- Testing ---
+pytest==8.3.4
+pytest-asyncio==0.24.0
+httpx==0.28.1
