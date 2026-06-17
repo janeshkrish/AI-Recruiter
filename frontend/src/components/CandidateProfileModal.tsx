@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { X, Briefcase, GraduationCap, MapPin, Award, CheckCircle, Brain, Target, Shield, Heart, Star, Clock, Activity } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { X, Briefcase, MapPin, Activity, Target, Star } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import axios from 'axios';
 

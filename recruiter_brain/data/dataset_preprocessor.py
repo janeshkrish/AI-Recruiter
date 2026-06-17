@@ -123,7 +123,8 @@ class DatasetPreprocessor:
             "normalized_skills": norm_skills,
             "best_edu_tier": best_edu_tier,
             "embedding_doc": embedding_doc,
-            "raw_profile": candidate
+            # NOTE: raw_profile is NOT stored here — it caused MemoryError at scale.
+            # The jury fetches full profiles from SQLite using candidate_id.
         }
 
     def preprocess_batch(self, candidates: list[CandidateProfile]) -> list[dict[str, Any]]:

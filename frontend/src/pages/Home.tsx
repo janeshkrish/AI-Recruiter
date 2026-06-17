@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import axios from 'axios';
@@ -32,21 +32,12 @@ function AnimatedCounter({ target, suffix = '' }: { target: number; suffix?: str
   return <>{count.toLocaleString()}{suffix}</>;
 }
 
-const stagger = {
-  hidden: {},
-  show: { transition: { staggerChildren: 0.1 } },
-};
-const fadeUp = {
-  hidden: { opacity: 0, y: 20 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.5, ease: [0.16, 1, 0.3, 1] } },
-};
-
 const agents = [
-  { icon: Target, name: 'Technical Fit', desc: 'Skill Transfer Graph + Semantic Match', color: 'from-blue-500 to-cyan-400', glow: 'blue' },
-  { icon: TrendingUp, name: 'Career Intelligence', desc: 'Promotion velocity & trajectory', color: 'from-emerald-500 to-teal-400', glow: 'emerald' },
-  { icon: Shield, name: 'Behavioral Intel', desc: '23 Redrob behavioral signals', color: 'from-amber-500 to-orange-400', glow: 'amber' },
-  { icon: Brain, name: 'Potential Engine', desc: 'Learning velocity & growth', color: 'from-purple-500 to-violet-400', glow: 'purple' },
-  { icon: Layers, name: 'Anti-Pattern Detection', desc: 'Consulting-only, title-hopping', color: 'from-rose-500 to-pink-400', glow: 'rose' },
+  { icon: Target, name: 'Technical Fit', desc: 'Skill Transfer Graph + Semantic Match', color: 'from-blue-500 to-cyan-400' },
+  { icon: TrendingUp, name: 'Career Intelligence', desc: 'Promotion velocity & trajectory', color: 'from-emerald-500 to-teal-400' },
+  { icon: Shield, name: 'Behavioral Intel', desc: '23 Redrob behavioral signals', color: 'from-amber-500 to-orange-400' },
+  { icon: Brain, name: 'Potential Engine', desc: 'Learning velocity & growth', color: 'from-purple-500 to-violet-400' },
+  { icon: Layers, name: 'Anti-Pattern Detection', desc: 'Consulting-only, title-hopping', color: 'from-rose-500 to-pink-400' },
 ];
 
 const pipelineStages = [
@@ -72,7 +63,7 @@ export default function Home() {
           className="text-center mb-20"
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+          transition={{ duration: 0.8 }}
         >
           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full glass text-xs font-medium text-blue-400 mb-6">
             <Sparkles size={14} />
@@ -111,12 +102,7 @@ export default function Home() {
         </motion.div>
 
         {/* ─── Stats ─── */}
-        <motion.div
-          className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-20"
-          variants={stagger}
-          initial="hidden"
-          animate="show"
-        >
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-20">
           {[
             { icon: Database, label: 'Total Applicants', value: stats?.total_applicants || 0, color: 'text-blue-400' },
             { icon: Layers, label: 'FAISS Indexed', value: stats?.indexed_candidates || 0, color: 'text-indigo-400' },
@@ -125,7 +111,13 @@ export default function Home() {
             { icon: Network, label: 'Skill Graph', value: 120, color: 'text-amber-400', suffix: ' edges' },
             { icon: Sparkles, label: 'Hidden Gems', value: stats?.hidden_gems_found || 0, color: 'text-rose-400' },
           ].map(({ icon: Icon, label, value, color, suffix }, i) => (
-            <motion.div key={i} variants={fadeUp} className="glass-card p-5 text-center group">
+            <motion.div
+              key={i}
+              className="glass-card p-5 text-center group"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.08, duration: 0.4 }}
+            >
               <div className={`${color} mb-3 flex justify-center`}>
                 <Icon size={22} />
               </div>
@@ -135,7 +127,7 @@ export default function Home() {
               <div className="text-xs text-slate-500 font-medium">{label}</div>
             </motion.div>
           ))}
-        </motion.div>
+        </div>
 
         {/* ─── Pipeline Funnel ─── */}
         <motion.div

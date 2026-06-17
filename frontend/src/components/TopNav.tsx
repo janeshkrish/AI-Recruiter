@@ -1,4 +1,3 @@
-import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Brain, BarChart3, Users, FileSearch, Workflow } from 'lucide-react';
 

@@ -287,12 +287,8 @@ class RecruiterAgent:
 
         # 5. Take Top K
         top_ranked = ranked[:self.settings.pipeline.top_k_results]
-        
-        # Clean up massive raw profiles but keep a structured dict for the UI
-        for c in top_ranked:
-            if "raw_profile" in c:
-                c["candidate_details"] = c["raw_profile"].model_dump()
-                del c["raw_profile"]
+        # Note: candidate_details is now built directly by the jury from SQLite data.
+        # No raw_profile cleanup needed.
 
         logger.info(f"Pipeline complete. Returning {len(top_ranked)} thoroughly vetted candidates.")
         

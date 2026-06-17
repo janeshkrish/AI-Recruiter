@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import axios from 'axios';
-import { Search, Filter, ChevronLeft, ChevronRight, User, Briefcase, MapPin, X } from 'lucide-react';
+import { Search, Filter, ChevronLeft, ChevronRight, Briefcase, MapPin, X } from 'lucide-react';
 import CandidateProfileModal from '../components/CandidateProfileModal';
 
 const API = 'http://127.0.0.1:8000';

@@ -1,13 +1,12 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ChevronDown, ChevronUp, Network, Briefcase, CheckCircle, AlertTriangle,
-  ExternalLink, Brain, Target, Shield, Activity, Zap, TrendingUp, Eye,
-  Clock, MapPin, Award, Star
+  ExternalLink, Target, Shield, Activity, MapPin, Award
 } from 'lucide-react';
 import {
   RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar,
-  ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Cell
+  ResponsiveContainer
 } from 'recharts';
 import type { Candidate } from '../App';
 import CandidateProfileModal from './CandidateProfileModal';
@@ -180,7 +179,7 @@ export default function CandidateDetail({ candidate }: Props) {
                     style={{ backgroundColor: item.color }}
                     initial={{ width: 0 }}
                     animate={{ width: `${Math.min(item.value, 100)}%` }}
-                    transition={{ delay: 0.4 + i * 0.1, duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+                    transition={{ delay: 0.4 + i * 0.1, duration: 0.8, ease: 'easeOut' }}
                   />
                 </div>
               </div>

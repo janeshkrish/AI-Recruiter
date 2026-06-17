@@ -1,10 +1,8 @@
-import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import axios from 'axios';
 import {
   ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar,
-  BarChart, Bar, XAxis, YAxis, Tooltip, Cell, PieChart, Pie
 } from 'recharts';
 import {
   Brain, Target, Shield, TrendingUp, Layers, Zap, GitBranch, Network,
@@ -27,16 +25,7 @@ const agentIcons: Record<string, any> = {
 };
 
 const agentColors = ['#3B82F6', '#10B981', '#F59E0B', '#8B5CF6', '#F43F5E'];
-
-const fadeUp = {
-  hidden: { opacity: 0, y: 20 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.5, ease: [0.16, 1, 0.3, 1] } },
-};
-
-const stagger = {
-  hidden: {},
-  show: { transition: { staggerChildren: 0.1 } },
-};
+const pieColors = ['#3B82F6', '#10B981', '#F59E0B', '#8B5CF6', '#06B6D4'];
 
 export default function PipelineAnalytics() {
   const { data, isLoading } = useQuery({
@@ -57,11 +46,9 @@ export default function PipelineAnalytics() {
 
   const weights = data?.weights || {};
   const weightsData = Object.entries(weights).map(([key, value]) => ({
-    name: key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+    name: key.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()),
     value: (value as number) * 100,
   }));
-
-  const pieColors = ['#3B82F6', '#10B981', '#F59E0B', '#8B5CF6', '#06B6D4'];
 
   return (
     <div className="flex-1 overflow-y-auto relative z-10">
@@ -81,33 +68,26 @@ export default function PipelineAnalytics() {
         </motion.div>
 
         {/* Infrastructure Stats */}
-        <motion.div
-          className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10"
-          variants={stagger}
-          initial="hidden"
-          animate="show"
-        >
-          <motion.div variants={fadeUp} className="glass-card p-5 text-center">
-            <Database size={22} className="text-blue-400 mx-auto mb-3" />
-            <div className="text-2xl font-black text-white">{data?.vector_store?.total_indexed?.toLocaleString() || 0}</div>
-            <div className="text-xs text-slate-500 mt-1">FAISS Indexed</div>
-          </motion.div>
-          <motion.div variants={fadeUp} className="glass-card p-5 text-center">
-            <Activity size={22} className="text-emerald-400 mx-auto mb-3" />
-            <div className="text-2xl font-black text-white">{data?.vector_store?.dimension || 0}</div>
-            <div className="text-xs text-slate-500 mt-1">Embedding Dimension</div>
-          </motion.div>
-          <motion.div variants={fadeUp} className="glass-card p-5 text-center">
-            <Network size={22} className="text-amber-400 mx-auto mb-3" />
-            <div className="text-2xl font-black text-white">{data?.skill_graph?.total_edges || 0}</div>
-            <div className="text-xs text-slate-500 mt-1">Skill Graph Edges</div>
-          </motion.div>
-          <motion.div variants={fadeUp} className="glass-card p-5 text-center">
-            <Sparkles size={22} className="text-purple-400 mx-auto mb-3" />
-            <div className="text-2xl font-black text-white">{data?.skill_graph?.total_skills || 0}</div>
-            <div className="text-xs text-slate-500 mt-1">Graph Skills</div>
-          </motion.div>
-        </motion.div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10">
+          {[
+            { icon: Database, color: 'text-blue-400', value: data?.vector_store?.total_indexed?.toLocaleString() || '0', label: 'FAISS Indexed' },
+            { icon: Activity, color: 'text-emerald-400', value: data?.vector_store?.dimension || '0', label: 'Embedding Dimension' },
+            { icon: Network, color: 'text-amber-400', value: data?.skill_graph?.total_edges || '0', label: 'Skill Graph Edges' },
+            { icon: Sparkles, color: 'text-purple-400', value: data?.skill_graph?.total_skills || '0', label: 'Skill Nodes' },
+          ].map(({ icon: Icon, color, value, label }, i) => (
+            <motion.div
+              key={i}
+              className="glass-card p-5 text-center"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.08 }}
+            >
+              <Icon size={22} className={`${color} mx-auto mb-3`} />
+              <div className="text-2xl font-black text-white">{value}</div>
+              <div className="text-xs text-slate-500 mt-1">{label}</div>
+            </motion.div>
+          ))}
+        </div>
 
         {/* Agents + Weights */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-10">
@@ -122,7 +102,7 @@ export default function PipelineAnalytics() {
               <Brain size={16} className="text-blue-400" /> 5-Agent Jury Architecture
             </h2>
             <div className="space-y-3">
-              {data?.agents?.map((agent: any, i: number) => {
+              {(data?.agents || []).map((agent: any, i: number) => {
                 const Icon = agentIcons[agent.id] || Zap;
                 return (
                   <motion.div
@@ -188,8 +168,8 @@ export default function PipelineAnalytics() {
                       className="progress-bar-fill"
                       style={{ backgroundColor: pieColors[i % pieColors.length] }}
                       initial={{ width: 0 }}
-                      animate={{ width: `${w.value * 2}%` }}
-                      transition={{ delay: 0.6 + i * 0.1, duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+                      animate={{ width: `${Math.min(w.value * 2, 100)}%` }}
+                      transition={{ delay: 0.6 + i * 0.1, duration: 0.8 }}
                     />
                   </div>
                 </div>
@@ -210,11 +190,11 @@ export default function PipelineAnalytics() {
           </h2>
           <div className="font-mono text-sm text-slate-300 bg-white/[0.02] p-4 rounded-xl border border-white/[0.06] leading-loose">
             <span className="text-emerald-400">final_score</span> = (
-            <span className="text-blue-400">{(weights.skill_match * 100 || 40).toFixed(0)}%</span> × technical +{' '}
-            <span className="text-emerald-400">{(weights.experience_match * 100 || 25).toFixed(0)}%</span> × career +{' '}
-            <span className="text-amber-400">{(weights.location_match * 200 || 10).toFixed(0)}%</span> × behavioral +{' '}
-            <span className="text-purple-400">{(weights.semantic_similarity * 100 || 20).toFixed(0)}%</span> × potential +{' '}
-            <span className="text-cyan-400">{(weights.education_match * 100 || 10).toFixed(0)}%</span> × education
+            <span className="text-blue-400">{((weights.skill_match || 0.4) * 100).toFixed(0)}%</span> × technical +{' '}
+            <span className="text-emerald-400">{((weights.experience_match || 0.25) * 100).toFixed(0)}%</span> × career +{' '}
+            <span className="text-amber-400">10%</span> × behavioral +{' '}
+            <span className="text-purple-400">{((weights.semantic_similarity || 0.2) * 100).toFixed(0)}%</span> × potential +{' '}
+            <span className="text-cyan-400">{((weights.education_match || 0.1) * 100).toFixed(0)}%</span> × education
             ) × <span className="text-rose-400">anti_pattern_penalty</span>
           </div>
         </motion.div>
@@ -228,12 +208,12 @@ export default function PipelineAnalytics() {
         >
           <DiffCard
             title="Skill Transfer Graph"
-            desc="Unlike keyword matching, our graph of 120+ edges understands that PyTorch experience transfers to TensorFlow, and FAISS transfers to Pinecone. Candidates get partial credit for adjacent skills."
+            desc="Unlike keyword matching, our graph of 120+ edges understands that PyTorch transfers to TensorFlow, and FAISS transfers to Pinecone. Candidates get partial credit for adjacent skills."
             color="blue"
           />
           <DiffCard
             title="23-Signal Behavioral Engine"
-            desc="We don't just match on paper. Response rate, GitHub activity, notice period, open-to-work status, interview completion — all 23 Redrob signals factor into ranking."
+            desc="Response rate, GitHub activity, notice period, open-to-work status, interview completion — all 23 Redrob signals factor into ranking."
             color="amber"
           />
           <DiffCard

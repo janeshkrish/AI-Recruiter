@@ -1,7 +1,6 @@
-import React from 'react';
 import { motion } from 'framer-motion';
 import type { Candidate } from '../App';
-import { Target, Activity, AlertTriangle, Trophy } from 'lucide-react';
+import { Target, Activity, AlertTriangle } from 'lucide-react';
 
 interface Props {
   candidates: Candidate[];

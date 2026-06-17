@@ -1,9 +1,9 @@
-import React, { useState, useRef } from 'react';
+import { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
 import {
-  Loader2, Zap, FileText, CheckCircle, Brain, Target, AlertTriangle,
-  Sparkles, ChevronRight, Clock, GitBranch, Shield, Clipboard
+  Loader2, Zap, FileText, CheckCircle, Brain, Target,
+  Sparkles, Clock, Shield, Clipboard
 } from 'lucide-react';
 import type { Candidate, ParsedJD, PipelineStats } from '../App';
 import CandidateList from '../components/CandidateList';
