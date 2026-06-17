@@ -118,13 +118,19 @@ class CandidateScore(BaseModel):
     semantic_similarity: float
     location_match: float
     potential_score: float = 0.0
+    behavioral_score: float = 0.0
     transferable_matches: int = 0
     reasoning: str
+    behavioral_insights: list[str] = Field(default_factory=list)
+    anti_pattern_flags: list[str] = Field(default_factory=list)
+    anti_pattern_penalty: float = 1.0
     candidate_details: dict[str, Any] = Field(default_factory=dict)
 
 
 class RankResponse(BaseModel):
     ranked_candidates: list[CandidateScore]
+    parsed_jd: dict[str, Any] = Field(default_factory=dict)
+    pipeline_stats: dict[str, Any] = Field(default_factory=dict)
 
 
 # --- Endpoints ---
@@ -144,8 +150,7 @@ async def rank_candidates(request: RankRequest):
         
     try:
         results = await agent.run_pipeline(request.job_description, custom_weights=request.custom_weights)
-        # Results are dicts mapping to CandidateScore
-        return {"ranked_candidates": results}
+        return results
     except Exception as e:
         logger.exception("Ranking failed")
         raise HTTPException(status_code=500, detail=str(e))
@@ -217,6 +222,18 @@ async def copilot_chat(request: CopilotRequest):
         if gems:
             return {"answer": f"Yes! Look at {gems[0]['candidate_id']}. They have massive learning potential ({gems[0]['potential_score']}%) despite lower traditional experience."}
         return {"answer": "No obvious hidden gems in this immediate batch. Try adjusting the What-If weights!"}
+    
+    if "risk" in q or "flag" in q:
+        flagged = [c for c in cands if c.get("anti_pattern_flags")]
+        if flagged:
+            flags = flagged[0].get("anti_pattern_flags", [])
+            return {"answer": f"⚠ {flagged[0]['candidate_id']} has flags: {', '.join(flags)}. Consider these carefully."}
+        return {"answer": "No significant risk flags detected in the current shortlist."}
+    
+    if "behavioral" in q or "respond" in q or "available" in q:
+        best_behavioral = max(cands, key=lambda c: c.get("behavioral_score", 0))
+        insights = best_behavioral.get("behavioral_insights", [])
+        return {"answer": f"Most engaged candidate: {best_behavioral['candidate_id']} (Behavioral: {best_behavioral.get('behavioral_score', 0):.0f}%). Key signals: {'; '.join(insights[:3])}"}
         
     return {"answer": "Based on the Multi-Agent evaluation, these candidates represent the absolute top tier for your specific JD requirements. Is there a specific metric you'd like me to explain?"}
 
@@ -234,10 +251,6 @@ async def candidate_battle(request: BattleRequest):
     if not c1 or not c2:
         raise HTTPException(status_code=404, detail="Candidate not found")
         
-    # We'll just run them through the Jury with default jd_skills (since this is generic comparison)
-    # Ideally the UI passes the actual JD skills, but for battle mode we can just compare raw heuristics.
-    
-    # We will compute delta
     return {
         "candidate1": request.candidate1_id,
         "candidate2": request.candidate2_id,
@@ -249,9 +262,20 @@ async def candidate_battle(request: BattleRequest):
 async def get_stats():
     """Return dataset statistics."""
     sqlite_store: SQLiteStore = app_state.get("sqlite_store")
+    vs: FAISSVectorStore = app_state.get("vector_store")
+    
     if not sqlite_store:
         raise HTTPException(status_code=503, detail="Database not ready")
-    return sqlite_store.get_stats()
+    
+    stats = sqlite_store.get_stats()
+    
+    # Add FAISS stats
+    if vs and vs.index:
+        stats["indexed_candidates"] = vs.index.ntotal
+    else:
+        stats["indexed_candidates"] = 0
+        
+    return stats
 
 @app.get("/api/candidates")
 async def get_candidates(
@@ -290,7 +314,6 @@ async def get_candidate(candidate_id: str):
 @app.get("/api/jobs")
 async def get_jobs():
     """Return available jobs. For this challenge, we just have the one JD file."""
-    # We could parse the job_description.docx here, but we'll return a static reference
     return {
         "jobs": [
             {
@@ -300,4 +323,30 @@ async def get_jobs():
                 "file": "job_description.docx"
             }
         ]
+    }
+
+@app.get("/api/pipeline/analytics")
+async def get_pipeline_analytics():
+    """Return analytics data for the Pipeline Analytics page."""
+    from recruiter_brain.scoring.skill_graph import SkillTransferGraph
+    
+    graph = SkillTransferGraph()
+    graph_stats = graph.get_graph_stats()
+    
+    vs: FAISSVectorStore = app_state.get("vector_store")
+    
+    return {
+        "skill_graph": graph_stats,
+        "vector_store": {
+            "total_indexed": vs.index.ntotal if vs and vs.index else 0,
+            "dimension": vs.dimension if vs else 0,
+        },
+        "agents": [
+            {"name": "Technical Fit", "id": "agent_a", "description": "Skill Transfer Graph + strict matching"},
+            {"name": "Career Intelligence", "id": "agent_b", "description": "Promotion velocity + experience depth"},
+            {"name": "Behavioral Intelligence", "id": "agent_c", "description": "23 Redrob signals analysis"},
+            {"name": "Potential Intelligence", "id": "agent_d", "description": "Learning velocity + domain alignment"},
+            {"name": "Anti-Pattern Detection", "id": "agent_e", "description": "Consulting-only, title-hopping, keyword-stuffing"},
+        ],
+        "weights": get_settings().weights.as_dict
     }
