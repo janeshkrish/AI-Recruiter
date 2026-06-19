@@ -101,16 +101,67 @@ export default function AnalyzeJD() {
                   <FileText size={14} />
                   Intelligent JD Analysis
                 </div>
-                <h1 className="text-3xl font-bold text-white mb-2">Paste Your Job Description</h1>
+                <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-violet-500/10 border border-violet-500/20 text-violet-300 text-sm font-medium mb-6">
+   AI Recruiting Intelligence
+</div>
+
+<h1 className="text-5xl font-black tracking-tight text-white mb-4">
+  Analyze Any Job Description
+</h1>
+
+<p className="text-slate-400 text-lg max-w-2xl mx-auto">
+  Extract skills, evaluate requirements, and discover the
+  best candidates using a multi-agent AI evaluation system.
+</p>
                 <p className="text-slate-500 text-sm">
                   Our 5-agent jury will parse requirements, search semantically, and rank candidates
                 </p>
               </div>
+              <div className="grid md:grid-cols-3 gap-4 mb-8">
 
-              <div className="glass-card p-1 mb-4">
+  <div className="glass-card p-4 text-center">
+    <Brain className="mx-auto mb-2 text-violet-400" />
+    <div className="font-semibold">5 AI Agents</div>
+    <div className="text-xs text-slate-500">
+      Multi-dimensional evaluation
+    </div>
+  </div>
+
+  <div className="glass-card p-4 text-center">
+    <Target className="mx-auto mb-2 text-cyan-400" />
+    <div className="font-semibold">Semantic Search</div>
+    <div className="text-xs text-slate-500">
+      Beyond keyword matching
+    </div>
+  </div>
+
+  <div className="glass-card p-4 text-center">
+    <Sparkles className="mx-auto mb-2 text-emerald-400" />
+    <div className="font-semibold">Hidden Talent</div>
+    <div className="text-xs text-slate-500">
+      Discover overlooked candidates
+    </div>
+  </div>
+
+</div>
+
+             <div className="glass-card p-2 mb-6 border border-violet-500/10">
                 <textarea
                   ref={textareaRef}
-                  className="w-full h-48 p-5 bg-transparent text-slate-200 rounded-xl resize-y focus:outline-none placeholder:text-slate-600 font-mono text-sm leading-relaxed"
+                  className="
+w-full
+h-64
+p-6
+bg-transparent
+text-slate-200
+rounded-2xl
+resize-none
+focus:outline-none
+placeholder:text-slate-600
+font-mono
+text-sm
+leading-relaxed
+"
                   placeholder="Paste your full job description here...&#10;&#10;The AI will extract: required skills, experience level, location, hidden traits, and anti-patterns from the text."
                   value={jdText}
                   onChange={(e) => setJdText(e.target.value)}
@@ -128,7 +179,7 @@ export default function AnalyzeJD() {
                 <button
                   onClick={handleAnalyze}
                   disabled={isSearching || !jdText.trim()}
-                  className="px-8 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-xl font-semibold shadow-lg shadow-blue-500/25 transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-8 py-3 bg-gradient-to-r from-violet-600 via-fuchsia-600 to-cyan-500 hover:from-violet-500 hover:to-cyan-500 text-white rounded-xl font-semibold shadow-lg shadow-violet-500/25 transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isSearching ? <Loader2 size={18} className="animate-spin" /> : <Zap size={18} />}
                   Analyze & Rank
@@ -156,7 +207,7 @@ export default function AnalyzeJD() {
                           <motion.div
                             key={i}
                             className={`flex items-center gap-3 p-3 rounded-lg transition-all ${
-                              isActive ? 'bg-blue-500/10 border border-blue-500/20' :
+                              isActive ? 'bg-violet-500/10 border border-violet-500/20' :
                               isDone ? 'bg-emerald-500/5' : 'opacity-40'
                             }`}
                             initial={{ opacity: 0, x: -10 }}
@@ -194,7 +245,7 @@ export default function AnalyzeJD() {
             animate={{ opacity: 1 }}
           >
             {/* Left: Parsed JD + Candidate List */}
-            <div className="w-[380px] border-r border-white/[0.06] flex flex-col shrink-0">
+            <div className="w-[350px] border-r border-white/[0.06] flex flex-col shrink-0">
               {/* Parsed JD Summary */}
               {parsedJD && (
                 <div className="p-4 border-b border-white/[0.06]">
@@ -202,7 +253,7 @@ export default function AnalyzeJD() {
                     <div className="text-xs font-semibold text-slate-400 uppercase tracking-widest">Parsed JD</div>
                     <button
                       onClick={() => { setCandidates([]); setSelectedCandidate(null); setParsedJD(null); }}
-                      className="text-xs text-blue-400 hover:text-blue-300 font-medium"
+                      className="text-xs text-violet-400 hover:text-violet-300 font-medium"
                     >
                       New Analysis
                     </button>

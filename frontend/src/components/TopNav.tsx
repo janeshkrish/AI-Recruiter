@@ -1,5 +1,13 @@
 import { Link, useLocation } from 'react-router-dom';
-import { Brain, BarChart3, Users, FileSearch, Workflow } from 'lucide-react';
+import {
+  Brain,
+  BarChart3,
+  Users,
+  FileSearch,
+  Workflow,
+  Search,
+  Bell
+} from 'lucide-react';
 
 const navLinks = [
   { path: '/', label: 'Dashboard', icon: BarChart3 },
@@ -12,59 +20,105 @@ export default function TopNav() {
   const location = useLocation();
 
   return (
-    <header className="h-16 glass-strong flex items-center px-6 shrink-0 z-30 sticky top-0">
-      {/* Logo */}
-      <Link to="/" className="flex items-center gap-3 mr-10 group">
-        <div className="relative">
-          <div className="w-9 h-9 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center shadow-lg shadow-blue-500/20 group-hover:shadow-blue-500/40 transition-shadow">
-            <Brain size={18} className="text-white" />
+    <header className="sticky top-0 z-50 h-20 border-b border-white/5 backdrop-blur-xl bg-[#09090B]/80">
+
+      <div className="max-w-7xl mx-auto px-6 h-full flex items-center">
+
+        {/* Logo */}
+        <Link
+          to="/"
+          className="flex items-center gap-3 mr-10 group shrink-0"
+        >
+          <div className="relative">
+
+            <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-violet-500 via-fuchsia-500 to-cyan-500 flex items-center justify-center shadow-lg shadow-violet-500/20 group-hover:scale-105 transition-all duration-300">
+              <Brain size={20} className="text-white" />
+            </div>
+
+            <div className="absolute -inset-2 bg-violet-500/20 blur-xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
           </div>
-          <div className="absolute -inset-1 bg-gradient-to-br from-blue-500/20 to-indigo-600/20 rounded-xl blur-sm opacity-0 group-hover:opacity-100 transition-opacity" />
-        </div>
-        <div className="flex flex-col">
-          <span className="font-bold text-white tracking-tight text-sm leading-tight">
-            AI Recruiter
-          </span>
-          <span className="text-[10px] text-blue-400 font-medium tracking-widest uppercase">
-            Intelligence
-          </span>
-        </div>
-      </Link>
 
-      {/* Navigation */}
-      <nav className="flex gap-1 flex-1">
-        {navLinks.map(({ path, label, icon: Icon }) => {
-          const isActive = location.pathname === path;
-          return (
-            <Link
-              key={path}
-              to={path}
-              className={`relative flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-                isActive
-                  ? 'text-white bg-white/[0.08]'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-white/[0.04]'
-              }`}
-            >
-              <Icon size={16} className={isActive ? 'text-blue-400' : ''} />
-              {label}
-              {isActive && (
-                <div className="absolute bottom-0 left-3 right-3 h-[2px] bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full" />
-              )}
-            </Link>
-          );
-        })}
-      </nav>
+          <div className="flex flex-col">
+            <span className="font-black text-white text-base tracking-tight">
+              TalentOS
+            </span>
 
-      {/* Right Section */}
-      <div className="flex items-center gap-4">
-        <div className="flex items-center gap-2">
+            <span className="text-[10px] uppercase tracking-[0.3em] text-violet-400 font-semibold">
+              AI RECRUITING
+            </span>
+          </div>
+        </Link>
+
+        {/* Navigation */}
+        <nav className="hidden md:flex items-center gap-2">
+
+          {navLinks.map(({ path, label, icon: Icon }) => {
+            const isActive = location.pathname === path;
+
+            return (
+              <Link
+                key={path}
+                to={path}
+                className={`relative flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-300
+                ${
+                  isActive
+                    ? 'bg-white/10 text-white'
+                    : 'text-slate-400 hover:text-white hover:bg-white/5'
+                }`}
+              >
+                <Icon
+                  size={16}
+                  className={
+                    isActive
+                      ? 'text-violet-400'
+                      : 'text-slate-500'
+                  }
+                />
+
+                {label}
+
+                {isActive && (
+                  <span className="absolute bottom-0 left-3 right-3 h-[2px] rounded-full bg-gradient-to-r from-violet-500 to-cyan-400" />
+                )}
+              </Link>
+            );
+          })}
+        </nav>
+
+        {/* Spacer */}
+        <div className="flex-1" />
+
+        {/* Search */}
+        <div className="hidden lg:flex items-center mr-5">
+
+          <div className="flex items-center gap-2 px-4 h-11 rounded-xl bg-white/[0.04] border border-white/5 w-72">
+
+            <Search size={16} className="text-slate-500" />
+
+            <input
+              placeholder="Search candidates..."
+              className="bg-transparent outline-none text-sm text-white placeholder:text-slate-500 flex-1"
+            />
+          </div>
+        </div>
+
+        {/* Live Badge */}
+        <div className="hidden md:flex items-center gap-2 px-3 py-2 rounded-full bg-emerald-500/10 border border-emerald-500/20 mr-4">
+
           <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-          <span className="text-xs text-slate-400 font-medium">Engine Active</span>
+
+          <span className="text-xs font-medium text-emerald-300">
+            Live
+          </span>
         </div>
-        <div className="w-px h-6 bg-white/10" />
-        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-slate-700 to-slate-800 border border-white/10 flex items-center justify-center text-xs font-bold text-slate-300">
-          JK
-        </div>
+
+       
+
+        {/* Profile */}
+        <button className="w-11 h-11 rounded-2xl bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center text-white font-bold shadow-lg shadow-violet-500/20 hover:scale-105 transition-all duration-300">
+          shri
+        </button>
+
       </div>
     </header>
   );

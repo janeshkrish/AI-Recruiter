@@ -17,9 +17,9 @@ export default function CandidateGrid({ candidates, onSelect }: Props) {
           key={c.candidate_id}
           initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}
           onClick={() => onSelect(c)}
-          className="glass-panel p-5 cursor-pointer hover:border-indigo-500/50 hover:bg-white/5 transition-all group relative overflow-hidden flex flex-col"
+          className="glass-card p-5 cursor-pointer hover:border-violet-500/40 transition-all group relative overflow-hidden flex flex-col"
         >
-          <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/5 blur-3xl rounded-full group-hover:bg-indigo-500/10 transition-all"></div>
+          <div className="absolute top-0 right-0 w-32 h-32 bg-violet-500/5 blur-3xl rounded-full group-hover:bg-violet-500/10 transition-all"></div>
           
           <div className="flex justify-between items-start mb-4">
             <div className="flex items-center gap-3">
@@ -36,7 +36,7 @@ export default function CandidateGrid({ candidates, onSelect }: Props) {
               </div>
             </div>
             <div className="text-right">
-              <div className="text-lg font-black text-transparent bg-clip-text bg-gradient-to-br from-indigo-400 to-cyan-400">
+              <div className="text-lg font-black text-transparent bg-clip-text bg-gradient-to-br from-violet-400 to-cyan-400">
                 {c.score.toFixed(1)}
               </div>
             </div>

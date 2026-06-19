@@ -20,12 +20,12 @@ export default function CandidateIntelligence({ candidate, onClose }: Props) {
         initial={{ opacity: 0, scale: 0.95, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 20 }}
-        className="relative w-full max-w-6xl h-[85vh] glass-panel bg-[#0B0E14] border border-white/10 shadow-2xl rounded-2xl flex flex-col overflow-hidden"
+        className="relative w-full max-w-7xl h-[88vh] glass-card border border-violet-500/10 shadow-[0_20px_80px_rgba(139,92,246,0.15)] rounded-3xl flex flex-col overflow-hidden"
       >
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-white/10 bg-white/5">
+        <div className="flex items-center justify-between p-6 border-b border-white/10 bg-gradient-to-r from-violet-500/5 via-transparent to-cyan-500/5">
           <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-full bg-indigo-500/20 border border-indigo-500/50 flex items-center justify-center text-xl font-bold text-indigo-200">
+            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center text-xl font-bold text-white shadow-lg shadow-violet-500/20">
               {candidate.candidate_details?.profile?.anonymized_name?.charAt(0) || 'C'}
             </div>
             <div>
@@ -44,7 +44,7 @@ export default function CandidateIntelligence({ candidate, onClose }: Props) {
               <div className="text-[10px] uppercase tracking-wider text-slate-500">Potential</div>
             </div>
             <div className="text-right">
-              <div className="text-2xl font-bold text-indigo-400">{candidate.score.toFixed(1)}</div>
+              <div className="text-2xl font-bold text-violet-400">{candidate.score.toFixed(1)}</div>
               <div className="text-[10px] uppercase tracking-wider text-slate-500">Match</div>
             </div>
             <button onClick={onClose} className="p-2 ml-4 bg-white/5 hover:bg-white/10 rounded-full transition-colors text-slate-400 hover:text-white">
@@ -58,7 +58,7 @@ export default function CandidateIntelligence({ candidate, onClose }: Props) {
           
           <div className="flex-1 space-y-6">
             <section className="glass-panel p-5">
-              <h3 className="text-sm font-semibold text-white uppercase tracking-wider mb-4 flex items-center gap-2"><Network size={16} className="text-indigo-400"/> Interactive Skill Graph</h3>
+              <h3 className="text-sm font-semibold text-white uppercase tracking-wider mb-4 flex items-center gap-2"><Network size={16} className="text-violet-400"/> Interactive Skill Graph</h3>
               {skills.length > 0 ? (
                 <SkillGraph skills={skills} />
               ) : (

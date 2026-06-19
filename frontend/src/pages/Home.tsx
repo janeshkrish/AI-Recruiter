@@ -65,27 +65,33 @@ export default function Home() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8 }}
         >
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full glass text-xs font-medium text-blue-400 mb-6">
-            <Sparkles size={14} />
-            Multi-Agent Recruitment Intelligence
-          </div>
+          
 
-          <h1 className="text-5xl md:text-7xl font-black tracking-tight leading-[1.1] mb-6">
-            <span className="text-white">Hire Smarter with</span>
-            <br />
-            <span className="gradient-text-blue">AI-Powered</span>{' '}
-            <span className="text-white">Ranking</span>
-          </h1>
+         <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-violet-500/20 bg-violet-500/10 text-violet-300 text-sm font-medium mb-8">
+  ✨ AI Recruiting Intelligence Platform
+</div>
+
+<h1 className="text-4xl md:text-6xl lg:text-7xl font-black tracking-tight leading-[1.05] mb-6">
+  <span className="text-white">
+    Find Exceptional Talent
+  </span>
+
+  <br />
+
+  <span className="gradient-text-blue">
+    Faster Than Ever
+  </span>
+</h1>
 
           <p className="text-lg md:text-xl text-slate-400 max-w-3xl mx-auto mb-10 leading-relaxed">
             Not keyword matching. Real intelligence. A 5-agent jury evaluates candidates across
-            technical fit, career trajectory, behavioral signals, learning potential, and anti-patterns.
+            technical fit, career trajectory, behavioral signals, learning potential, and career trajectory to uncover top talent.
           </p>
 
           <div className="flex items-center justify-center gap-4">
             <Link
               to="/analyze"
-              className="group relative px-8 py-3.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-xl font-semibold shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 transition-all flex items-center gap-2"
+              className="group relative px-8 py-3.5 bg-gradient-to-r from-violet-600 via-fuchsia-600 to-cyan-500 hover:from-blue-500 hover:to-indigo-500  hover:scale-105 text-white rounded-xl font-semibold shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 transition-all flex items-center gap-2"
             >
               <Zap size={18} />
               Analyze Job Description
@@ -113,13 +119,13 @@ export default function Home() {
           ].map(({ icon: Icon, label, value, color, suffix }, i) => (
             <motion.div
               key={i}
-              className="glass-card p-5 text-center group"
+              className="glass-card p-6 text-center group card-hover"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.08, duration: 0.4 }}
             >
               <div className={`${color} mb-3 flex justify-center`}>
-                <Icon size={22} />
+                <Icon size={26} />
               </div>
               <div className="text-2xl font-bold text-white mb-1">
                 <AnimatedCounter target={typeof value === 'number' ? value : 0} suffix={suffix || ''} />
@@ -128,6 +134,79 @@ export default function Home() {
             </motion.div>
           ))}
         </div>
+
+        <div className="grid lg:grid-cols-3 gap-6 mb-20">
+
+  <div className="glass-card p-6">
+    <h3 className="text-lg font-bold mb-4">
+      Candidate Funnel
+    </h3>
+
+    <div className="space-y-4">
+
+      <div>
+        <div className="flex justify-between text-sm">
+          <span>Applicants</span>
+          <span>100K</span>
+        </div>
+
+        <div className="progress-bar mt-2">
+          <div
+            className="progress-bar-fill bg-violet-500"
+            style={{ width: '100%' }}
+          />
+        </div>
+      </div>
+
+      <div>
+        <div className="flex justify-between text-sm">
+          <span>Shortlisted</span>
+          <span>500</span>
+        </div>
+
+        <div className="progress-bar mt-2">
+          <div
+            className="progress-bar-fill bg-cyan-500"
+            style={{ width: '35%' }}
+          />
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div className="glass-card p-6">
+    <h3 className="text-lg font-bold mb-4">
+      Top Skills
+    </h3>
+
+    <div className="flex flex-wrap gap-2">
+      {['React','Node.js','Python','AWS','Docker','ML'].map(skill => (
+        <span
+          key={skill}
+          className="px-3 py-1 rounded-full bg-violet-500/10 border border-violet-500/20 text-violet-300 text-xs"
+        >
+          {skill}
+        </span>
+      ))}
+    </div>
+  </div>
+
+  <div className="glass-card p-6">
+    <h3 className="text-lg font-bold mb-4">
+      Recent Activity
+    </h3>
+
+    <div className="space-y-3 text-sm text-slate-400">
+      <div>✓ JD Uploaded</div>
+      <div>✓ 500 Candidates Ranked</div>
+      <div>✓ Hidden Gem Found</div>
+      <div>✓ Agent Consensus 95%</div>
+    </div>
+  </div>
+
+</div>
+
 
         {/* ─── Pipeline Funnel ─── */}
         <motion.div
@@ -143,7 +222,7 @@ export default function Home() {
             {pipelineStages.map((stage, i) => (
               <React.Fragment key={i}>
                 <motion.div
-                  className="glass-card p-5 flex-1 text-center"
+                  className="glass-card p-5 flex-1 text-center card-hover"
                   initial={{ opacity: 0, scale: 0.9 }}
                   animate={{ opacity: 1, scale: 1 }}
                   transition={{ delay: 0.4 + i * 0.15 }}
@@ -170,13 +249,13 @@ export default function Home() {
           transition={{ delay: 0.5, duration: 0.6 }}
         >
           <h2 className="text-2xl font-bold text-white mb-2 text-center">5-Agent Jury Architecture</h2>
-          <p className="text-slate-500 text-center mb-8 text-sm">Each candidate is evaluated independently by 5 specialized agents</p>
+          <p className="text-slate-500 text-center mb-8 text-sm">Each candidate is evaluated independently by 5 specialized agents to identify the highest-potential candidates.</p>
 
           <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
             {agents.map((agent, i) => (
               <motion.div
                 key={i}
-                className="glass-card p-5 text-center group cursor-default"
+                className="glass-card p-5 text-center group cursor-default card-hover"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.6 + i * 0.1 }}
@@ -199,7 +278,7 @@ export default function Home() {
           animate={{ opacity: 1 }}
           transition={{ delay: 0.7, duration: 0.6 }}
         >
-          <h2 className="text-2xl font-bold text-white mb-6 text-center">Quick Actions</h2>
+          <h2 className="text-2xl font-bold text-white mb-6 text-center">Get Started</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-3xl mx-auto">
             <ActionCard
               to="/analyze"
