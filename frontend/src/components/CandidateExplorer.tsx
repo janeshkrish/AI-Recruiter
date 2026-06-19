@@ -9,100 +9,223 @@ interface Props {
   isEvaluating: boolean;
 }
 
-export default function CandidateExplorer({ candidates, onSelect, isEvaluating }: Props) {
+export default function CandidateExplorer({
+  candidates,
+  onSelect,
+  isEvaluating,
+}: Props) {
   const [minScore, setMinScore] = useState(0);
 
   if (isEvaluating) {
     return (
-      <div className="flex flex-col items-center justify-center h-64 text-slate-400">
-        <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 2, ease: "linear" }} className="mb-4 text-indigo-500">
-          <Zap size={48} />
+      <div className="flex flex-col items-center justify-center h-80">
+        <motion.div
+          animate={{ rotate: 360 }}
+          transition={{
+            repeat: Infinity,
+            duration: 2,
+            ease: 'linear',
+          }}
+          className="mb-6 text-violet-400"
+        >
+          <Zap size={56} />
         </motion.div>
-        <p>Jury is evaluating the 100K talent pool...</p>
+
+        <h3 className="text-xl font-bold text-white mb-2">
+          AI Agents Evaluating Talent
+        </h3>
+
+        <p className="text-slate-400">
+          Ranking candidates across the talent universe...
+        </p>
       </div>
     );
   }
 
   if (!candidates.length) {
     return (
-      <div className="flex flex-col items-center justify-center h-64 text-slate-500">
-        <p>Awaiting commands. Enter a JD to unleash the jury.</p>
+      <div className="flex items-center justify-center h-80 text-slate-500">
+        Awaiting Job Description Analysis...
       </div>
     );
   }
 
-  const filtered = candidates.filter(c => c.score >= minScore);
+  const filtered = candidates.filter(
+    (c) => c.score >= minScore
+  );
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between bg-[#151A22] p-4 rounded-xl border border-[#2A3140]">
-        <div className="flex items-center gap-4">
-          <Filter size={18} className="text-slate-400" />
-          <span className="text-sm font-medium">Minimum Jury Score: {minScore}%</span>
-          <input 
-            type="range" 
-            min="0" max="100" 
-            value={minScore} 
-            onChange={(e) => setMinScore(Number(e.target.value))}
-            className="w-48 accent-indigo-500"
-          />
-        </div>
-        <div className="text-sm text-slate-400">
-          Showing <span className="text-white font-bold">{filtered.length}</span> top candidates
+
+      {/* Filter */}
+      <div className="glass-card p-5">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+
+          <div className="flex items-center gap-3">
+            <Filter
+              size={18}
+              className="text-violet-400"
+            />
+
+            <div>
+              <div className="font-semibold text-white">
+                Candidate Filter
+              </div>
+
+              <div className="text-xs text-slate-500">
+                Minimum Score: {minScore}
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-4">
+            <input
+              type="range"
+              min="0"
+              max="100"
+              value={minScore}
+              onChange={(e) =>
+                setMinScore(Number(e.target.value))
+              }
+              className="w-48 accent-violet-500"
+            />
+
+            <span className="text-sm text-slate-400">
+              {filtered.length} Results
+            </span>
+          </div>
+
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+      {/* Candidate Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+
         {filtered.map((c, i) => (
-          <motion.div 
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: i * 0.05 }}
+          <motion.div
             key={c.candidate_id}
+            initial={{
+              opacity: 0,
+              y: 20,
+            }}
+            animate={{
+              opacity: 1,
+              y: 0,
+            }}
+            transition={{
+              delay: i * 0.05,
+            }}
+            whileHover={{
+              y: -6,
+            }}
             onClick={() => onSelect(c)}
-            className="bg-[#151A22] border border-[#2A3140] rounded-xl p-5 cursor-pointer hover:border-indigo-500 hover:shadow-[0_0_15px_rgba(79,70,229,0.2)] transition-all group relative overflow-hidden"
+            className="glass-card p-6 cursor-pointer group relative overflow-hidden"
           >
-            <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-500/10 blur-2xl rounded-full translate-x-1/2 -translate-y-1/2 group-hover:bg-indigo-500/20 transition-all"></div>
-            
-            <div className="flex justify-between items-start mb-4">
+
+            {/* Glow */}
+            <div className="absolute top-0 right-0 w-40 h-40 bg-violet-500/10 blur-3xl rounded-full opacity-0 group-hover:opacity-100 transition-all" />
+
+            {/* Header */}
+            <div className="flex justify-between items-start mb-5">
+
               <div>
-                <h3 className="font-bold text-lg text-white mb-1">{c.candidate_id}</h3>
-                <div className="flex gap-2 text-xs font-medium">
-                  {c.potential_score > 80 && (
-                    <span className="bg-amber-500/10 text-amber-400 border border-amber-500/20 px-2 py-0.5 rounded flex items-center gap-1">
-                      <TrendingUp size={12}/> High Potential
-                    </span>
-                  )}
-                </div>
+                <h3 className="font-bold text-lg text-white">
+                  {c.candidate_id}
+                </h3>
+
+                {c.potential_score > 80 && (
+                  <div className="mt-2 inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                    <TrendingUp size={12} />
+                    High Potential
+                  </div>
+                )}
               </div>
+
               <div className="text-right">
-                <div className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-br from-indigo-400 to-cyan-400">
-                  {c.score.toFixed(1)}
+                <div className="text-4xl font-black gradient-text-blue">
+                  {c.score.toFixed(0)}
                 </div>
-                <div className="text-[10px] text-slate-500 uppercase tracking-wider">Jury Score</div>
+
+                <div className="text-[10px] uppercase tracking-wider text-slate-500">
+                  AI Score
+                </div>
               </div>
+
             </div>
 
-            <div className="grid grid-cols-2 gap-y-3 gap-x-2 text-sm mb-4">
-              <div>
-                <div className="text-xs text-slate-500 mb-1">Tech Match</div>
-                <div className="font-semibold">{c.skill_match.toFixed(1)}%</div>
-              </div>
-              <div>
-                <div className="text-xs text-slate-500 mb-1">Momentum</div>
-                <div className="font-semibold text-emerald-400">{c.experience_match.toFixed(1)}%</div>
-              </div>
-              <div>
-                <div className="text-xs text-slate-500 mb-1">Transferable</div>
-                <div className="font-semibold text-indigo-400">{c.transferable_matches} Skills</div>
-              </div>
+            {/* Metrics */}
+            <div className="space-y-4">
+
+              <MetricBar
+                label="Technical Match"
+                value={c.skill_match}
+                color="bg-cyan-500"
+              />
+
+              <MetricBar
+                label="Experience Match"
+                value={c.experience_match}
+                color="bg-emerald-500"
+              />
+
+              <MetricBar
+                label="Potential"
+                value={c.potential_score}
+                color="bg-violet-500"
+              />
+
             </div>
 
-            <button className="w-full py-2 bg-[#2A3140]/50 hover:bg-[#2A3140] text-sm font-medium rounded-lg transition-colors flex items-center justify-center gap-2 group-hover:text-indigo-400">
-              Deep Dive <ArrowUpRight size={16} />
-            </button>
+            {/* Footer */}
+            <div className="mt-6 flex justify-between items-center">
+
+              <span className="text-xs text-slate-500">
+                {c.transferable_matches} transferable skills
+              </span>
+
+              <span className="flex items-center gap-1 text-violet-400 text-sm font-medium">
+                View Details
+                <ArrowUpRight size={14} />
+              </span>
+
+            </div>
+
           </motion.div>
         ))}
+
+      </div>
+    </div>
+  );
+}
+
+function MetricBar({
+  label,
+  value,
+  color,
+}: {
+  label: string;
+  value: number;
+  color: string;
+}) {
+  return (
+    <div>
+      <div className="flex justify-between text-xs mb-1">
+        <span className="text-slate-400">
+          {label}
+        </span>
+
+        <span className="text-white">
+          {value.toFixed(0)}%
+        </span>
+      </div>
+
+      <div className="h-2 bg-white/5 rounded-full overflow-hidden">
+        <div
+          className={`h-full ${color}`}
+          style={{
+            width: `${Math.min(value, 100)}%`,
+          }}
+        />
       </div>
     </div>
   );
