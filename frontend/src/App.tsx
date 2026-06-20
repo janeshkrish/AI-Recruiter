@@ -7,7 +7,7 @@ import Home from './pages/Home';
 import CandidatesExplorer from './pages/CandidatesExplorer';
 import AnalyzeJD from './pages/AnalyzeJD';
 import PipelineAnalytics from './pages/PipelineAnalytics';
-
+import AnalysisLoading from './pages/AnalysisLoading';
 const queryClient = new QueryClient();
 
 export interface Candidate {
@@ -82,8 +82,10 @@ export default function App() {
               <Route path="/candidates" element={<CandidatesExplorer />} />
               <Route path="/analyze" element={<AnalyzeJD />} />
               <Route path="/pipeline" element={<PipelineAnalytics />} />
+              <Route path="/analysis-loading" element={<AnalysisLoading />} />
             </Routes>
           </main>
+      
 
         </div>
 
