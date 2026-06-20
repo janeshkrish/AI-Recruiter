@@ -1,4 +1,5 @@
 import { motion } from 'framer-motion';
+import { useState } from 'react';
 import type { Candidate } from '../App';
 import { Target, Activity, AlertTriangle } from 'lucide-react';
 
@@ -9,6 +10,22 @@ interface Props {
 }
 
 export default function CandidateList({ candidates, selectedId, onSelect }: Props) {
+  const [currentPage, setCurrentPage] = useState(1);
+
+const candidatesPerPage = 6;
+
+const totalPages = Math.ceil(
+  candidates.length / candidatesPerPage
+);
+
+const startIndex =
+  (currentPage - 1) * candidatesPerPage;
+
+const currentCandidates =
+  candidates.slice(
+    startIndex,
+    startIndex + candidatesPerPage
+  );
   return (
     <div className="flex-1 overflow-y-auto">
       <div className="sticky top-0 glass-strong border-b border-white/[0.06] px-4 py-3 z-10 flex justify-between items-center text-xs font-semibold text-slate-500 uppercase tracking-wider">
@@ -17,10 +34,12 @@ export default function CandidateList({ candidates, selectedId, onSelect }: Prop
       </div>
 
       <div className="p-3 space-y-1.5">
-        {candidates.map((c, index) => {
+        {currentCandidates.map((c, index) => {
+          const actualIndex =
+    startIndex + index;
           const isSelected = c.candidate_id === selectedId;
           const hasFlags = c.anti_pattern_flags && c.anti_pattern_flags.length > 0;
-          const rankBadge = index < 3;
+          const rankBadge = actualIndex < 3;
 
           return (
             <motion.div
@@ -33,16 +52,16 @@ export default function CandidateList({ candidates, selectedId, onSelect }: Prop
               }`}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.03, duration: 0.3 }}
+              transition={{ delay: actualIndex * 0.03, duration: 0.3 }}
             >
               <div className="flex items-center gap-3">
                 {/* Rank Badge or Avatar */}
                 <div className="relative">
                   {rankBadge ? (
                     <div className={`w-10 h-10 rounded-full flex items-center justify-center font-black text-sm shrink-0 ${
-                      index === 0 ? 'rank-gold' : index === 1 ? 'rank-silver' : 'rank-bronze'
+                      actualIndex === 0 ? 'rank-gold' : actualIndex === 1 ? 'rank-silver' : 'rank-bronze'
                     }`}>
-                      #{index + 1}
+                      #{actualIndex + 1}
                     </div>
                   ) : (
                     <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm shrink-0 ${
@@ -87,6 +106,37 @@ export default function CandidateList({ candidates, selectedId, onSelect }: Prop
                   style={{ width: `${Math.min(c.skill_match, 100)}%` }}
                 />
               </div>
+              <div className="sticky bottom-0 bg-[#09090B] border-t border-white/5 p-3 flex items-center justify-between">
+
+  <button
+    onClick={() =>
+      setCurrentPage((p) =>
+        Math.max(1, p - 1)
+      )
+    }
+    disabled={currentPage === 1}
+    className="px-3 py-1.5 rounded-lg bg-white/5 text-xs text-white disabled:opacity-40"
+  >
+    ← Prev
+  </button>
+
+  <div className="text-xs text-slate-400">
+    Page {currentPage} of {totalPages}
+  </div>
+
+  <button
+    onClick={() =>
+      setCurrentPage((p) =>
+        Math.min(totalPages, p + 1)
+      )
+    }
+    disabled={currentPage === totalPages}
+    className="px-3 py-1.5 rounded-lg bg-white/5 text-xs text-white disabled:opacity-40"
+  >
+    Next →
+  </button>
+
+</div>
 
               {/* Mini Metrics */}
               <div className="flex items-center justify-between text-[10px]">
