@@ -1,4 +1,3 @@
-import React from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
@@ -7,7 +6,8 @@ import Home from './pages/Home';
 import CandidatesExplorer from './pages/CandidatesExplorer';
 import AnalyzeJD from './pages/AnalyzeJD';
 import PipelineAnalytics from './pages/PipelineAnalytics';
-import AnalysisLoading from './pages/AnalysisLoading';
+import CandidateProfilePage from './pages/CandidateProfilePage';
+
 const queryClient = new QueryClient();
 
 export interface Candidate {
@@ -82,7 +82,7 @@ export default function App() {
               <Route path="/candidates" element={<CandidatesExplorer />} />
               <Route path="/analyze" element={<AnalyzeJD />} />
               <Route path="/pipeline" element={<PipelineAnalytics />} />
-              <Route path="/analysis-loading" element={<AnalysisLoading />} />
+              <Route path="/candidate/:candidateId" element={<CandidateProfilePage />} />
             </Routes>
           </main>
       

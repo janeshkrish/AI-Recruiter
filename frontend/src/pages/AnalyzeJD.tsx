@@ -2,12 +2,13 @@ import { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
 import {
-  Loader2, Zap, FileText, CheckCircle, Brain, Target,
+  Loader2, Zap, FileText, Brain, Target,
   Sparkles, Clock, Shield, Clipboard
 } from 'lucide-react';
 import type { Candidate, ParsedJD, PipelineStats } from '../App';
 import CandidateList from '../components/CandidateList';
 import CandidateDetail from '../components/CandidateDetail';
+import AIProcessingOverlay from '../components/AIProcessingOverlay';
 
 const API = 'http://127.0.0.1:8000';
 
@@ -29,14 +30,6 @@ Things we'd like: LLM fine-tuning experience (LoRA, QLoRA, PEFT), Learning-to-ra
 
 Things we do NOT want: Title-chasers, Framework enthusiasts, People who have only worked at consulting firms (TCS, Infosys, Wipro, Accenture, Cognizant, Capgemini) in their entire career.`;
 
-const pipelineSteps = [
-  { label: 'Parsing JD', desc: 'Extracting skills, traits, anti-patterns', icon: FileText },
-  { label: 'Generating Embeddings', desc: 'Encoding JD into vector space', icon: Brain },
-  { label: 'FAISS Retrieval', desc: 'Semantic search across candidates', icon: Target },
-  { label: 'Multi-Agent Jury', desc: '5-agent scoring & reasoning', icon: Shield },
-  { label: 'Final Ranking', desc: 'Weighted synthesis & ranking', icon: Sparkles },
-];
-
 export default function AnalyzeJD() {
   const [jdText, setJdText] = useState('');
   const [isSearching, setIsSearching] = useState(false);
@@ -45,7 +38,10 @@ export default function AnalyzeJD() {
   const [selectedCandidate, setSelectedCandidate] = useState<Candidate | null>(null);
   const [parsedJD, setParsedJD] = useState<ParsedJD | null>(null);
   const [pipelineStats, setPipelineStats] = useState<PipelineStats | null>(null);
+  const [showOverlay, setShowOverlay] = useState(false);
+  const [overlayComplete, setOverlayComplete] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const resultsRef = useRef<HTMLDivElement>(null);
 
   const handleAnalyze = async () => {
     if (!jdText.trim()) return;
@@ -53,9 +49,11 @@ export default function AnalyzeJD() {
     setCandidates([]);
     setSelectedCandidate(null);
     setParsedJD(null);
+    setShowOverlay(true);
+    setOverlayComplete(false);
 
     // Animate pipeline steps
-    for (let i = 0; i < pipelineSteps.length; i++) {
+    for (let i = 0; i < 5; i++) {
       setCurrentStep(i);
       await new Promise(r => setTimeout(r, i === 3 ? 600 : 400));
     }
@@ -64,14 +62,29 @@ export default function AnalyzeJD() {
       const res = await axios.post(`${API}/api/rank`, {
         job_description: jdText,
       });
+
+      // Show completion state
+      setOverlayComplete(true);
       setCandidates(res.data.ranked_candidates);
       setParsedJD(res.data.parsed_jd);
       setPipelineStats(res.data.pipeline_stats);
       if (res.data.ranked_candidates.length > 0) {
         setSelectedCandidate(res.data.ranked_candidates[0]);
       }
+
+      // Auto-dismiss overlay after success screen shows
+      await new Promise(r => setTimeout(r, 2200));
+      setShowOverlay(false);
+      setOverlayComplete(false);
+
+      // Smooth scroll to results after a short delay
+      setTimeout(() => {
+        resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 300);
     } catch (err) {
       console.error(err);
+      setShowOverlay(false);
+      setOverlayComplete(false);
     } finally {
       setIsSearching(false);
       setCurrentStep(-1);
@@ -85,6 +98,14 @@ export default function AnalyzeJD() {
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden relative z-10">
+      {/* Fullscreen AI Processing Overlay */}
+      <AIProcessingOverlay
+        isVisible={showOverlay}
+        currentStep={currentStep}
+        totalCandidates={candidates.length}
+        isComplete={overlayComplete}
+      />
+
       {/* Top: JD Input */}
       <AnimatePresence mode="wait">
         {candidates.length === 0 ? (
@@ -162,7 +183,7 @@ font-mono
 text-sm
 leading-relaxed
 "
-                  placeholder="Paste your full job description here...&#10;&#10;The AI will extract: required skills, experience level, location, hidden traits, and anti-patterns from the text."
+                  placeholder={"Paste your full job description here...\n\nThe AI will extract: required skills, experience level, location, hidden traits, and anti-patterns from the text."}
                   value={jdText}
                   onChange={(e) => setJdText(e.target.value)}
                 />
@@ -185,64 +206,17 @@ leading-relaxed
                   Analyze & Rank
                 </button>
               </div>
-
-              {/* Pipeline Progress */}
-              <AnimatePresence>
-                {isSearching && (
-                  <motion.div
-                    className="mt-8 glass-card p-6"
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0 }}
-                  >
-                    <div className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-4">
-                      Pipeline Progress
-                    </div>
-                    <div className="space-y-3">
-                      {pipelineSteps.map((step, i) => {
-                        const Icon = step.icon;
-                        const isActive = i === currentStep;
-                        const isDone = i < currentStep;
-                        return (
-                          <motion.div
-                            key={i}
-                            className={`flex items-center gap-3 p-3 rounded-lg transition-all ${
-                              isActive ? 'bg-violet-500/10 border border-violet-500/20' :
-                              isDone ? 'bg-emerald-500/5' : 'opacity-40'
-                            }`}
-                            initial={{ opacity: 0, x: -10 }}
-                            animate={{ opacity: isActive || isDone ? 1 : 0.4, x: 0 }}
-                            transition={{ delay: i * 0.1 }}
-                          >
-                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
-                              isDone ? 'bg-emerald-500/20 text-emerald-400' :
-                              isActive ? 'bg-blue-500/20 text-blue-400' :
-                              'bg-white/5 text-slate-600'
-                            }`}>
-                              {isDone ? <CheckCircle size={16} /> : isActive ? <Loader2 size={16} className="animate-spin" /> : <Icon size={16} />}
-                            </div>
-                            <div>
-                              <div className={`text-sm font-medium ${isDone ? 'text-emerald-400' : isActive ? 'text-white' : 'text-slate-600'}`}>
-                                {step.label}
-                              </div>
-                              <div className="text-xs text-slate-600">{step.desc}</div>
-                            </div>
-                          </motion.div>
-                        );
-                      })}
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
             </div>
           </motion.div>
         ) : (
           /* Results View */
           <motion.div
             key="results"
+            ref={resultsRef}
             className="flex-1 flex overflow-hidden"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
           >
             {/* Left: Parsed JD + Candidate List */}
             <div className="w-[350px] border-r border-white/[0.06] flex flex-col shrink-0">

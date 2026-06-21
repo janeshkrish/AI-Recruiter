@@ -1,7 +1,8 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  ChevronDown, ChevronUp, Network, Briefcase, CheckCircle, AlertTriangle,
+  ChevronDown, Network, Briefcase, CheckCircle, AlertTriangle,
   ExternalLink, Target, Shield, Activity, MapPin, Award
 } from 'lucide-react';
 import {
@@ -9,19 +10,16 @@ import {
   ResponsiveContainer
 } from 'recharts';
 import type { Candidate } from '../App';
-import CandidateProfileModal from './CandidateProfileModal';
 
 interface Props {
   candidate: Candidate;
 }
 
 export default function CandidateDetail({ candidate }: Props) {
-  const [expandedSection, setExpandedSection] = useState<string | null>(null);
-  const [showModal, setShowModal] = useState(false);
-
-  const toggleSection = (section: string) => {
-    setExpandedSection(prev => prev === section ? null : section);
-  };
+  // Independent accordion states — both can be open simultaneously
+  const [careerOpen, setCareerOpen] = useState(false);
+  const [skillsOpen, setSkillsOpen] = useState(false);
+  const navigate = useNavigate();
 
   const history = candidate.candidate_details?.career_history || [];
   const skills = candidate.candidate_details?.skills || [];
@@ -101,11 +99,15 @@ export default function CandidateDetail({ candidate }: Props) {
           </div>
         </div>
 
-        {/* View Full Profile button */}
+        {/* View Full Profile button — navigates to /candidate/:id */}
         <div className="mb-4 flex justify-end relative z-10">
           <button
-            onClick={() => setShowModal(true)}
-            className="px-5 py-2 bg-gradient-to-r from-slate-700 to-slate-800 hover:from-slate-600 hover:to-slate-700 text-white rounded-xl shadow-lg transition-all flex items-center gap-2 font-medium text-sm border border-white/10"
+            onClick={() =>
+              navigate(`/candidate/${candidate.candidate_id}`, {
+                state: { candidate },
+              })
+            }
+            className="px-5 py-2 bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-500 hover:to-fuchsia-500 text-white rounded-xl shadow-lg shadow-violet-500/20 transition-all flex items-center gap-2 font-medium text-sm border border-violet-500/20"
           >
             <ExternalLink size={14} /> View Full Profile
           </button>
@@ -302,19 +304,33 @@ export default function CandidateDetail({ candidate }: Props) {
         </motion.div>
       )}
 
-      {/* ─── Expandable Sections ─── */}
+      {/* ─── Expandable Sections (INDEPENDENT — both can be open) ─── */}
       <div className="space-y-3 pt-2">
         {/* Career Timeline */}
         <div className="glass-card overflow-hidden">
-          <button onClick={() => toggleSection('career')} className="w-full p-4 flex items-center justify-between bg-white/[0.02] hover:bg-white/[0.04] transition-colors">
+          <button
+            onClick={() => setCareerOpen(prev => !prev)}
+            className="w-full p-4 flex items-center justify-between bg-white/[0.02] hover:bg-white/[0.04] transition-colors"
+          >
             <span className="font-semibold text-white flex items-center gap-2 text-sm">
               <Briefcase size={16} className="text-slate-400" /> Career Timeline ({history.length} roles)
             </span>
-            {expandedSection === 'career' ? <ChevronUp size={16} className="text-slate-400" /> : <ChevronDown size={16} className="text-slate-400" />}
+            <motion.div
+              animate={{ rotate: careerOpen ? 180 : 0 }}
+              transition={{ duration: 0.3 }}
+            >
+              <ChevronDown size={16} className="text-slate-400" />
+            </motion.div>
           </button>
           <AnimatePresence>
-            {expandedSection === 'career' && (
-              <motion.div initial={{ height: 0 }} animate={{ height: 'auto' }} exit={{ height: 0 }} className="overflow-hidden">
+            {careerOpen && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.3 }}
+                className="overflow-hidden"
+              >
                 <div className="p-6 border-t border-white/[0.06]">
                   <div className="relative pl-6 space-y-6 before:absolute before:inset-y-0 before:left-[11px] before:w-px before:bg-white/10">
                     {history.map((job: any, i: number) => (
@@ -343,15 +359,29 @@ export default function CandidateDetail({ candidate }: Props) {
 
         {/* Skills Detail */}
         <div className="glass-card overflow-hidden">
-          <button onClick={() => toggleSection('skills')} className="w-full p-4 flex items-center justify-between bg-white/[0.02] hover:bg-white/[0.04] transition-colors">
+          <button
+            onClick={() => setSkillsOpen(prev => !prev)}
+            className="w-full p-4 flex items-center justify-between bg-white/[0.02] hover:bg-white/[0.04] transition-colors"
+          >
             <span className="font-semibold text-white flex items-center gap-2 text-sm">
               <Network size={16} className="text-slate-400" /> All Skills ({skills.length})
             </span>
-            {expandedSection === 'skills' ? <ChevronUp size={16} className="text-slate-400" /> : <ChevronDown size={16} className="text-slate-400" />}
+            <motion.div
+              animate={{ rotate: skillsOpen ? 180 : 0 }}
+              transition={{ duration: 0.3 }}
+            >
+              <ChevronDown size={16} className="text-slate-400" />
+            </motion.div>
           </button>
           <AnimatePresence>
-            {expandedSection === 'skills' && (
-              <motion.div initial={{ height: 0 }} animate={{ height: 'auto' }} exit={{ height: 0 }} className="overflow-hidden">
+            {skillsOpen && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.3 }}
+                className="overflow-hidden"
+              >
                 <div className="p-6 border-t border-white/[0.06]">
                   <div className="flex flex-wrap gap-2">
                     {skills.map((s: any, i: number) => {
@@ -374,13 +404,6 @@ export default function CandidateDetail({ candidate }: Props) {
           </AnimatePresence>
         </div>
       </div>
-
-      {showModal && (
-        <CandidateProfileModal
-          candidateId={candidate.candidate_id}
-          onClose={() => setShowModal(false)}
-        />
-      )}
     </div>
   );
 }

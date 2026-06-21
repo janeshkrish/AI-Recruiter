@@ -5,8 +5,6 @@ import {
   Users,
   FileSearch,
   Workflow,
-  Search,
-  Bell
 } from 'lucide-react';
 
 const navLinks = [
@@ -88,20 +86,6 @@ export default function TopNav() {
         {/* Spacer */}
         <div className="flex-1" />
 
-        {/* Search */}
-        <div className="hidden lg:flex items-center mr-5">
-
-          <div className="flex items-center gap-2 px-4 h-11 rounded-xl bg-white/[0.04] border border-white/5 w-72">
-
-            <Search size={16} className="text-slate-500" />
-
-            <input
-              placeholder="Search candidates..."
-              className="bg-transparent outline-none text-sm text-white placeholder:text-slate-500 flex-1"
-            />
-          </div>
-        </div>
-
         {/* Live Badge */}
         <div className="hidden md:flex items-center gap-2 px-3 py-2 rounded-full bg-emerald-500/10 border border-emerald-500/20 mr-4">
 
@@ -111,8 +95,6 @@ export default function TopNav() {
             Live
           </span>
         </div>
-
-       
 
         {/* Profile */}
         <button className="w-11 h-11 rounded-2xl bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center text-white font-bold shadow-lg shadow-violet-500/20 hover:scale-105 transition-all duration-300">

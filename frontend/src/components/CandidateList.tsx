@@ -1,7 +1,8 @@
 import { motion } from 'framer-motion';
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import type { Candidate } from '../App';
-import { Target, Activity, AlertTriangle } from 'lucide-react';
+import { Target, Activity, AlertTriangle, ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface Props {
   candidates: Candidate[];
@@ -11,32 +12,25 @@ interface Props {
 
 export default function CandidateList({ candidates, selectedId, onSelect }: Props) {
   const [currentPage, setCurrentPage] = useState(1);
+  const navigate = useNavigate();
 
-const candidatesPerPage = 6;
+  const candidatesPerPage = 6;
+  const totalPages = Math.ceil(candidates.length / candidatesPerPage);
+  const startIndex = (currentPage - 1) * candidatesPerPage;
+  const currentCandidates = candidates.slice(startIndex, startIndex + candidatesPerPage);
 
-const totalPages = Math.ceil(
-  candidates.length / candidatesPerPage
-);
-
-const startIndex =
-  (currentPage - 1) * candidatesPerPage;
-
-const currentCandidates =
-  candidates.slice(
-    startIndex,
-    startIndex + candidatesPerPage
-  );
   return (
-    <div className="flex-1 overflow-y-auto">
-      <div className="sticky top-0 glass-strong border-b border-white/[0.06] px-4 py-3 z-10 flex justify-between items-center text-xs font-semibold text-slate-500 uppercase tracking-wider">
+    <div className="flex-1 flex flex-col overflow-hidden">
+      {/* Header */}
+      <div className="sticky top-0 glass-strong border-b border-white/[0.06] px-4 py-3 z-10 flex justify-between items-center text-xs font-semibold text-slate-500 uppercase tracking-wider shrink-0">
         <span>Ranked Candidates</span>
         <span className="text-blue-400">{candidates.length} Found</span>
       </div>
 
-      <div className="p-3 space-y-1.5">
+      {/* Candidate Cards */}
+      <div className="flex-1 overflow-y-auto p-3 space-y-1.5">
         {currentCandidates.map((c, index) => {
-          const actualIndex =
-    startIndex + index;
+          const actualIndex = startIndex + index;
           const isSelected = c.candidate_id === selectedId;
           const hasFlags = c.anti_pattern_flags && c.anti_pattern_flags.length > 0;
           const rankBadge = actualIndex < 3;
@@ -45,21 +39,21 @@ const currentCandidates =
             <motion.div
               key={c.candidate_id}
               onClick={() => onSelect(c)}
-              className={`p-3 rounded-xl border transition-all cursor-pointer flex flex-col gap-2 ${
+              className={`p-3 rounded-xl border transition-all cursor-pointer flex flex-col gap-2 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-violet-500/10 ${
                 isSelected
                   ? 'bg-blue-500/10 border-blue-500/30 shadow-lg shadow-blue-500/5'
                   : 'bg-white/[0.02] border-white/[0.04] hover:border-white/[0.08] hover:bg-white/[0.04]'
               }`}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: actualIndex * 0.03, duration: 0.3 }}
+              transition={{ delay: index * 0.03, duration: 0.3 }}
             >
               <div className="flex items-center gap-3">
                 {/* Rank Badge or Avatar */}
                 <div className="relative">
                   {rankBadge ? (
-                    <div className={`w-10 h-10 rounded-full flex items-center justify-center font-black text-sm shrink-0 ${
-                      actualIndex === 0 ? 'rank-gold' : actualIndex === 1 ? 'rank-silver' : 'rank-bronze'
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center font-black text-sm shrink-0 ring-2 ring-offset-1 ring-offset-[#09090B] ${
+                      actualIndex === 0 ? 'rank-gold ring-amber-400/30' : actualIndex === 1 ? 'rank-silver ring-slate-400/30' : 'rank-bronze ring-orange-400/30'
                     }`}>
                       #{actualIndex + 1}
                     </div>
@@ -106,37 +100,6 @@ const currentCandidates =
                   style={{ width: `${Math.min(c.skill_match, 100)}%` }}
                 />
               </div>
-              <div className="sticky bottom-0 bg-[#09090B] border-t border-white/5 p-3 flex items-center justify-between">
-
-  <button
-    onClick={() =>
-      setCurrentPage((p) =>
-        Math.max(1, p - 1)
-      )
-    }
-    disabled={currentPage === 1}
-    className="px-3 py-1.5 rounded-lg bg-white/5 text-xs text-white disabled:opacity-40"
-  >
-    ← Prev
-  </button>
-
-  <div className="text-xs text-slate-400">
-    Page {currentPage} of {totalPages}
-  </div>
-
-  <button
-    onClick={() =>
-      setCurrentPage((p) =>
-        Math.min(totalPages, p + 1)
-      )
-    }
-    disabled={currentPage === totalPages}
-    className="px-3 py-1.5 rounded-lg bg-white/5 text-xs text-white disabled:opacity-40"
-  >
-    Next →
-  </button>
-
-</div>
 
               {/* Mini Metrics */}
               <div className="flex items-center justify-between text-[10px]">
@@ -157,10 +120,46 @@ const currentCandidates =
                   {c.candidate_details?.profile?.years_of_experience || 0}y
                 </div>
               </div>
+
+              {/* View Profile Button */}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  navigate(`/candidate/${c.candidate_id}`, { state: { candidate: c } });
+                }}
+                className="w-full mt-1 text-xs text-violet-400 hover:text-violet-300 font-medium py-1.5 rounded-lg bg-violet-500/5 hover:bg-violet-500/10 transition-all border border-violet-500/10"
+              >
+                View Full Profile →
+              </button>
             </motion.div>
           );
         })}
       </div>
+
+      {/* Global Pagination — fixed at bottom */}
+      {totalPages > 1 && (
+        <div className="shrink-0 bg-[#09090B] border-t border-white/[0.06] px-4 py-3 flex items-center justify-between">
+          <button
+            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+            disabled={currentPage === 1}
+            className="p-2 rounded-lg bg-white/5 hover:bg-white/10 text-slate-400 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+          >
+            <ChevronLeft size={14} />
+          </button>
+
+          <div className="text-xs text-slate-400 font-medium">
+            Page {currentPage} of {totalPages}
+          </div>
+
+          <button
+            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+            disabled={currentPage === totalPages}
+            className="p-2 rounded-lg bg-white/5 hover:bg-white/10 text-slate-400 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+          >
+            <ChevronRight size={14} />
+          </button>
+        </div>
+      )}
     </div>
   );
 }

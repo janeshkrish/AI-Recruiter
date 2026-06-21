@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import axios from 'axios';
 import { Search, Filter, ChevronLeft, ChevronRight, Briefcase, MapPin, X } from 'lucide-react';
-import CandidateProfileModal from '../components/CandidateProfileModal';
+import AutocompleteInput from '../components/AutocompleteInput';
 
 const API = 'http://127.0.0.1:8000';
 
@@ -21,7 +22,14 @@ const fetchCandidates = async (page: number, limit: number, search: string, skil
   return res.data;
 };
 
+// Fetch a large batch to extract unique skills/roles for autocomplete suggestions
+const fetchSuggestionData = async () => {
+  const res = await axios.get(`${API}/api/candidates?page=1&limit=500`);
+  return res.data;
+};
+
 export default function CandidatesExplorer() {
+  const navigate = useNavigate();
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(25);
   const [searchInput, setSearchInput] = useState('');
@@ -31,13 +39,45 @@ export default function CandidatesExplorer() {
   const [filterMinExp, setFilterMinExp] = useState('');
   const [filterRole, setFilterRole] = useState('');
   const [activeFilters, setActiveFilters] = useState({ skills: '', minExp: '', role: '' });
-  const [selectedCandidateId, setSelectedCandidateId] = useState<string | null>(null);
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ['candidates', page, limit, search, activeFilters],
     queryFn: () => fetchCandidates(page, limit, search, activeFilters.skills, activeFilters.minExp, activeFilters.role),
     placeholderData: (previousData) => previousData,
   });
+
+  // Fetch suggestion data for autocomplete
+  const { data: suggestionData } = useQuery({
+    queryKey: ['candidate-suggestions'],
+    queryFn: fetchSuggestionData,
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+  });
+
+  // Extract unique skills and roles from fetched data
+  const { uniqueSkills, uniqueRoles } = useMemo(() => {
+    if (!suggestionData?.data) return { uniqueSkills: [] as string[], uniqueRoles: [] as string[] };
+
+    const skillsSet = new Set<string>();
+    const rolesSet = new Set<string>();
+
+    for (const candidate of suggestionData.data) {
+      // Extract skills
+      const candidateSkills = candidate.skills || [];
+      for (const skill of candidateSkills) {
+        const name = typeof skill === 'string' ? skill : skill.name;
+        if (name) skillsSet.add(name);
+      }
+
+      // Extract roles
+      const title = candidate.profile?.current_title;
+      if (title) rolesSet.add(title);
+    }
+
+    return {
+      uniqueSkills: Array.from(skillsSet).sort(),
+      uniqueRoles: Array.from(rolesSet).sort(),
+    };
+  }, [suggestionData]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -67,9 +107,21 @@ export default function CandidatesExplorer() {
             <Filter size={16} className="text-slate-400" /> Filters
           </h2>
           <div className="space-y-4">
-            <FilterInput label="Skills" placeholder="e.g. Python, React" value={filterSkills} onChange={setFilterSkills} />
+            <AutocompleteInput
+              label="Skills"
+              placeholder="e.g. Python, React"
+              value={filterSkills}
+              onChange={setFilterSkills}
+              suggestions={uniqueSkills}
+            />
             <FilterInput label="Min Experience (Yrs)" placeholder="0" value={filterMinExp} onChange={setFilterMinExp} type="number" />
-            <FilterInput label="Current Role" placeholder="e.g. Engineer" value={filterRole} onChange={setFilterRole} />
+            <AutocompleteInput
+              label="Current Role"
+              placeholder="e.g. Engineer"
+              value={filterRole}
+              onChange={setFilterRole}
+              suggestions={uniqueRoles}
+            />
             <div className="flex gap-2 pt-2">
               <button onClick={applyFilters} className="flex-1 bg-blue-600 hover:bg-blue-500 text-white py-2 rounded-lg font-medium text-sm transition-colors">
                 Apply
@@ -171,7 +223,7 @@ export default function CandidatesExplorer() {
                     </td>
                     <td className="py-3.5 px-6 text-right">
                       <button
-                        onClick={() => setSelectedCandidateId(candidate.candidate_id)}
+                        onClick={() => navigate(`/candidate/${candidate.candidate_id}`)}
                         className="text-blue-400 hover:text-blue-300 font-medium text-xs opacity-0 group-hover:opacity-100 transition-all px-3 py-1.5 rounded-lg bg-blue-500/10 hover:bg-blue-500/20"
                       >
                         View Profile
@@ -217,13 +269,6 @@ export default function CandidatesExplorer() {
           </div>
         </div>
       </div>
-
-      {selectedCandidateId && (
-        <CandidateProfileModal
-          candidateId={selectedCandidateId}
-          onClose={() => setSelectedCandidateId(null)}
-        />
-      )}
     </div>
   );
 }
