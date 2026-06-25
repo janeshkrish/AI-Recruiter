@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { CheckCircle2, LoaderCircle } from "lucide-react";
 
 export default function AnalysisLoading() {
   const navigate = useNavigate();
@@ -23,23 +24,23 @@ export default function AnalysisLoading() {
         <div className="space-y-6">
 
           <div className="glass-card p-5">
-            ✓ Parsing JD
+            <div className="flex items-center gap-3"><CheckCircle2 size={18} className="text-white" /> Parsing JD</div>
           </div>
 
           <div className="glass-card p-5">
-            ✓ Generating Embeddings
+            <div className="flex items-center gap-3"><CheckCircle2 size={18} className="text-white" /> Generating Embeddings</div>
           </div>
 
           <div className="glass-card p-5">
-            ✓ FAISS Retrieval
+            <div className="flex items-center gap-3"><CheckCircle2 size={18} className="text-white" /> FAISS Retrieval</div>
           </div>
 
           <div className="glass-card p-5">
-            ✓ Multi-Agent Jury
+            <div className="flex items-center gap-3"><CheckCircle2 size={18} className="text-white" /> Multi-Agent Jury</div>
           </div>
 
           <div className="glass-card p-5 animate-pulse">
-            ⟳ Final Ranking
+            <div className="flex items-center gap-3"><LoaderCircle size={18} className="text-zinc-200 animate-spin" /> Final Ranking</div>
           </div>
 
         </div>

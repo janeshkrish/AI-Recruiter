@@ -197,9 +197,9 @@ export default function CandidateProfileModal({ candidateId, onClose }: Props) {
                   <h3 className="text-sm font-bold text-white mb-4 pb-2 border-b border-white/[0.06]">Platform & Activity Signals</h3>
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-y-4 gap-x-6 text-sm glass-card p-6">
                     <DetailItem label="Completeness" value={`${(data.redrob_signals.profile_completeness_score * 100).toFixed(0)}%`} />
-                    <DetailItem label="Open to Work" value={data.redrob_signals.open_to_work_flag ? 'Yes ✓' : 'No'} />
+                    <DetailItem label="Open to Work" value={data.redrob_signals.open_to_work_flag ? 'Available' : 'No'} />
                     <DetailItem label="Preferred Mode" value={data.redrob_signals.preferred_work_mode} />
-                    <DetailItem label="Relocate" value={data.redrob_signals.willing_to_relocate ? 'Yes ✓' : 'No'} />
+                    <DetailItem label="Relocate" value={data.redrob_signals.willing_to_relocate ? 'Open' : 'No'} />
                     <DetailItem label="Notice Period" value={`${data.redrob_signals.notice_period_days} days`} />
                     <DetailItem label="Response Rate" value={`${(data.redrob_signals.recruiter_response_rate * 100).toFixed(0)}%`} />
                     <DetailItem label="GitHub" value={data.redrob_signals.github_activity_score > 0 ? `${data.redrob_signals.github_activity_score}` : 'N/A'} />
