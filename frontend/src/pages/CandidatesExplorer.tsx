@@ -3,10 +3,31 @@ import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import axios from 'axios';
-import { Search, Filter, ChevronLeft, ChevronRight, Briefcase, MapPin, X } from 'lucide-react';
+import { Search, Filter, ChevronLeft, ChevronRight, Briefcase, MapPin, X, Download, Sparkles, ArrowLeft, Trophy } from 'lucide-react';
 import AutocompleteInput from '../components/AutocompleteInput';
 
 const API = 'http://127.0.0.1:8000';
+
+interface RoleRankingRow {
+  candidate_id: string;
+  rank: number;
+  score: number;
+  reasoning: string;
+  candidate?: {
+    name?: string;
+    current_title?: string;
+    years_of_experience?: number;
+    location?: string;
+    current_company?: string;
+    core_hits?: number;
+  };
+}
+
+interface RoleRankingResponse {
+  role: string;
+  total: number;
+  rows: RoleRankingRow[];
+}
 
 const fetchCandidates = async (page: number, limit: number, search: string, skills: string, minExperience: string, currentRole: string) => {
   const params = new URLSearchParams({
@@ -28,10 +49,16 @@ const fetchSuggestionData = async () => {
   return res.data;
 };
 
+const fetchRoleRanking = async (): Promise<RoleRankingResponse> => {
+  const res = await axios.get(`${API}/api/candidates/role-ranking?limit=100`);
+  return res.data;
+};
+
 export default function CandidatesExplorer() {
   const navigate = useNavigate();
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(25);
+  const [showRoleRanking, setShowRoleRanking] = useState(false);
   const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
 
@@ -44,6 +71,18 @@ export default function CandidatesExplorer() {
     queryKey: ['candidates', page, limit, search, activeFilters],
     queryFn: () => fetchCandidates(page, limit, search, activeFilters.skills, activeFilters.minExp, activeFilters.role),
     placeholderData: (previousData) => previousData,
+  });
+
+  const {
+    data: roleRankingData,
+    isFetching: isRankingLoading,
+    isError: isRankingError,
+    refetch: refetchRoleRanking,
+  } = useQuery({
+    queryKey: ['role-ranking', 100],
+    queryFn: fetchRoleRanking,
+    enabled: false,
+    staleTime: 5 * 60 * 1000,
   });
 
   // Fetch suggestion data for autocomplete
@@ -98,6 +137,15 @@ export default function CandidatesExplorer() {
     setPage(1);
   };
 
+  const handleGenerateRoleRanking = () => {
+    setShowRoleRanking(true);
+    void refetchRoleRanking();
+  };
+
+  const handleDownloadRanking = () => {
+    window.location.href = `${API}/api/candidates/role-ranking.csv?limit=100`;
+  };
+
   return (
     <div className="flex-1 flex overflow-hidden relative z-10">
       {/* Sidebar Filters */}
@@ -149,23 +197,128 @@ export default function CandidatesExplorer() {
       {/* Main Content */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Header */}
-        <div className="p-5 border-b border-[#7a5647]/10 flex items-center justify-between glass-strong">
-          <h1 className="text-xl font-bold text-[var(--color-text-primary)]">Dataset Explorer</h1>
-          <form onSubmit={handleSearch} className="relative w-80">
-            <input
-              type="text"
-              className="w-full pl-10 pr-4 py-2.5 glass-input rounded-xl text-sm"
-              placeholder="Search by name, skills, company..."
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
-            />
-            <Search className="absolute left-3.5 top-3 text-[#8b766c]" size={16} />
-          </form>
+        <div className="p-5 border-b border-[#7a5647]/10 flex flex-wrap items-center justify-between gap-3 glass-strong">
+          <div className="flex items-center gap-3">
+            {showRoleRanking && (
+              <button
+                type="button"
+                onClick={() => setShowRoleRanking(false)}
+                className="p-2 glass rounded-lg hover:bg-white transition-colors"
+                title="Back to dataset"
+              >
+                <ArrowLeft size={16} className="text-[#8b766c]" />
+              </button>
+            )}
+            <div>
+              <h1 className="text-xl font-bold text-[var(--color-text-primary)]">
+                {showRoleRanking ? 'Senior AI Engineer Ranking' : 'Dataset Explorer'}
+              </h1>
+              {showRoleRanking && (
+                <div className="text-[10px] text-[var(--color-text-tertiary)] uppercase tracking-wider font-semibold">
+                  {roleRankingData?.total || 100} ranked candidates
+                </div>
+              )}
+            </div>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            {!showRoleRanking && (
+              <form onSubmit={handleSearch} className="relative w-80">
+                <input
+                  type="text"
+                  className="w-full pl-10 pr-4 py-2.5 glass-input rounded-xl text-sm"
+                  placeholder="Search by name, skills, company..."
+                  value={searchInput}
+                  onChange={(e) => setSearchInput(e.target.value)}
+                />
+                <Search className="absolute left-3.5 top-3 text-[#8b766c]" size={16} />
+              </form>
+            )}
+            <button
+              type="button"
+              onClick={handleGenerateRoleRanking}
+              disabled={isRankingLoading}
+              className="metal-button inline-flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium text-sm"
+              title="Generate role ranking"
+            >
+              <Sparkles size={16} />
+              {isRankingLoading ? 'Analyzing...' : 'Role Ranking'}
+            </button>
+            <button
+              type="button"
+              onClick={handleDownloadRanking}
+              className="metal-button-secondary inline-flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium text-sm"
+              title="Download CSV"
+            >
+              <Download size={16} />
+              Download CSV
+            </button>
+          </div>
         </div>
 
         {/* Table */}
         <div className="flex-1 overflow-auto">
-          {isLoading ? (
+          {showRoleRanking ? (
+            isRankingLoading && !roleRankingData ? (
+              <div className="flex items-center justify-center h-full text-[var(--color-text-tertiary)] text-sm">
+                <div className="flex flex-col items-center gap-3">
+                  <div className="w-6 h-6 border-2 border-[#b15c3e] border-t-transparent rounded-full animate-spin" />
+                  Building role ranking...
+                </div>
+              </div>
+            ) : isRankingError ? (
+              <div className="flex items-center justify-center h-full text-rose-400 text-sm">Error building role ranking. Is the backend running?</div>
+            ) : (
+              <table className="w-full text-left border-collapse">
+                <thead className="glass-strong sticky top-0 z-10 border-b border-[#7a5647]/10">
+                  <tr>
+                    <th className="py-3 px-6 text-[10px] font-semibold text-[var(--color-text-tertiary)] uppercase tracking-wider w-[90px]">Rank</th>
+                    <th className="py-3 px-6 text-[10px] font-semibold text-[var(--color-text-tertiary)] uppercase tracking-wider w-[260px]">Candidate ID</th>
+                    <th className="py-3 px-6 text-[10px] font-semibold text-[var(--color-text-tertiary)] uppercase tracking-wider w-[120px]">Score</th>
+                    <th className="py-3 px-6 text-[10px] font-semibold text-[var(--color-text-tertiary)] uppercase tracking-wider min-w-[460px]">Reasoning</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[#7a5647]/8">
+                  {roleRankingData?.rows?.map((row, i) => (
+                    <motion.tr
+                      key={row.candidate_id}
+                      className="hover:bg-[#fff8f1] transition-colors group"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ delay: Math.min(i * 0.01, 0.25) }}
+                    >
+                      <td className="py-3.5 px-6">
+                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-sm font-black ${
+                          row.rank === 1 ? 'rank-gold' : row.rank === 2 ? 'rank-silver' : row.rank === 3 ? 'rank-bronze' : 'bg-[var(--color-pill-bg)] text-[var(--color-pill-text)] border border-[var(--color-pill-border)]'
+                        }`}>
+                          {row.rank <= 3 ? <Trophy size={16} /> : row.rank}
+                        </div>
+                      </td>
+                      <td className="py-3.5 px-6">
+                        <button
+                          type="button"
+                          onClick={() => navigate(`/candidate/${row.candidate_id}`, { state: { returnTo: '/candidates' } })}
+                          className="font-semibold text-[var(--color-text-primary)] text-sm hover:text-[var(--color-accent-blue)] transition-colors text-left"
+                        >
+                          {row.candidate_id}
+                        </button>
+                        <div className="text-[10px] text-[var(--color-text-tertiary)] truncate max-w-[220px]">
+                          {row.candidate?.current_title || 'Professional'} {row.candidate?.years_of_experience ? `- ${row.candidate.years_of_experience.toFixed(1)}y` : ''}
+                        </div>
+                      </td>
+                      <td className="py-3.5 px-6">
+                        <span className="inline-flex items-center justify-center min-w-[70px] px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-700 border border-emerald-500/20 font-mono text-sm font-bold">
+                          {row.score.toFixed(3)}
+                        </span>
+                      </td>
+                      <td className="py-3.5 px-6 text-[var(--color-text-secondary)] text-sm leading-relaxed">
+                        {row.reasoning}
+                      </td>
+                    </motion.tr>
+                  ))}
+                </tbody>
+              </table>
+            )
+          ) : isLoading ? (
             <div className="flex items-center justify-center h-full text-[var(--color-text-tertiary)] text-sm">
               <div className="flex flex-col items-center gap-3">
                 <div className="w-6 h-6 border-2 border-[#b15c3e] border-t-transparent rounded-full animate-spin" />
@@ -236,6 +389,7 @@ export default function CandidatesExplorer() {
         </div>
 
         {/* Pagination */}
+        {!showRoleRanking && (
         <div className="border-t border-[#7a5647]/10 p-4 glass-strong flex items-center justify-between">
           <div className="flex items-center gap-4 text-xs text-[var(--color-text-tertiary)]">
             <span>Page {data?.page} of {data?.total_pages}</span>
@@ -267,6 +421,7 @@ export default function CandidatesExplorer() {
             </button>
           </div>
         </div>
+        )}
       </div>
     </div>
   );

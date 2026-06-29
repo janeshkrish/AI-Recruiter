@@ -19,7 +19,7 @@ class DatasetSettings(BaseSettings):
     """Dataset configuration settings."""
 
     # Path to the dataset directory
-    path: str = r"C:\Users\Shrija S.M\Downloads\[PUB] India_runs_data_and_ai_challenge\[PUB] India_runs_data_and_ai_challenge\India_runs_data_and_ai_challenge"
+    path: str = r"C:\Users\THIVAKAR\AI-Recruiter\[PUB] India_runs_data_and_ai_challenge\[PUB] India_runs_data_and_ai_challenge\India_runs_data_and_ai_challenge"
     candidates_file: str = "candidates.jsonl"
     cache_dir: str = ".cache"
     

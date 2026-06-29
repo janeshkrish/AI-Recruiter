@@ -9,13 +9,17 @@ Maintains in-memory FAISS index and candidate metadata.
 from __future__ import annotations
 
 import os
+import csv
 from contextlib import asynccontextmanager
+from io import StringIO
 from typing import Any
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from loguru import logger
 from pydantic import BaseModel, Field
+from cachetools import TTLCache
 
 from recruiter_brain.agents.recruiter_agent import RecruiterAgent
 from recruiter_brain.config import get_settings
@@ -24,10 +28,12 @@ from recruiter_brain.data.dataset_preprocessor import DatasetPreprocessor
 from recruiter_brain.embeddings.embedding_service import EmbeddingService
 from recruiter_brain.embeddings.faiss_store import FAISSVectorStore
 from recruiter_brain.data.sqlite_store import SQLiteStore
+from recruiter_brain.scoring.document_ranker import DocumentInformedRanker
 
 
 # Global instances initialized during startup
 app_state: dict[str, Any] = {}
+role_ranking_cache = TTLCache(maxsize=8, ttl=900)
 
 
 @asynccontextmanager
@@ -131,6 +137,21 @@ class RankResponse(BaseModel):
     ranked_candidates: list[CandidateScore]
     parsed_jd: dict[str, Any] = Field(default_factory=dict)
     pipeline_stats: dict[str, Any] = Field(default_factory=dict)
+
+
+class RoleRankingRow(BaseModel):
+    candidate_id: str
+    rank: int
+    score: float
+    reasoning: str
+    candidate: dict[str, Any] = Field(default_factory=dict)
+
+
+class RoleRankingResponse(BaseModel):
+    role: str
+    source_documents: list[str]
+    total: int
+    rows: list[RoleRankingRow]
 
 
 # --- Endpoints ---
@@ -297,6 +318,64 @@ async def get_candidates(
         "current_role": current_role
     }
     return sqlite_store.get_paginated_candidates(page=page, limit=limit, search=search, filters=filters)
+
+
+def _get_role_ranking(limit: int = 100) -> list[dict[str, Any]]:
+    sqlite_store: SQLiteStore = app_state.get("sqlite_store")
+    if not sqlite_store:
+        raise HTTPException(status_code=503, detail="Database not ready")
+
+    safe_limit = max(1, min(limit, 500))
+    cache_key = f"redrob-senior-ai-engineer:{safe_limit}"
+    if cache_key not in role_ranking_cache:
+        ranker = DocumentInformedRanker()
+        role_ranking_cache[cache_key] = ranker.rank(
+            sqlite_store.iter_role_ranking_candidates(pool_limit=3000),
+            top_n=safe_limit,
+        )
+    return role_ranking_cache[cache_key]
+
+
+@app.get("/api/candidates/role-ranking", response_model=RoleRankingResponse)
+async def get_role_ranking(limit: int = 100):
+    """Return document-informed candidate ranking rows for the attached Redrob role."""
+    rows = _get_role_ranking(limit=limit)
+    return {
+        "role": "Senior AI Engineer - Founding Team",
+        "source_documents": [
+            "job_description.docx",
+            "submission_spec.docx",
+            "redrob_signals_doc.docx",
+        ],
+        "total": len(rows),
+        "rows": rows,
+    }
+
+
+@app.get("/api/candidates/role-ranking.csv")
+async def download_role_ranking_csv(limit: int = 100):
+    """Download the document-informed ranking as submission-spec CSV."""
+    rows = _get_role_ranking(limit=limit)
+    output = StringIO(newline="")
+    writer = csv.DictWriter(output, fieldnames=["candidate_id", "rank", "score", "reasoning"])
+    writer.writeheader()
+    for row in rows:
+        writer.writerow(
+            {
+                "candidate_id": row["candidate_id"],
+                "rank": row["rank"],
+                "score": row["score"],
+                "reasoning": row["reasoning"],
+            }
+        )
+    output.seek(0)
+    filename = "redrob_senior_ai_engineer_ranking.csv"
+    return StreamingResponse(
+        iter([output.getvalue()]),
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
 
 @app.get("/api/candidates/{candidate_id}")
 async def get_candidate(candidate_id: str):

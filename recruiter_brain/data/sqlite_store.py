@@ -223,3 +223,95 @@ class SQLiteStore:
         if row:
             return json.loads(row["raw_data"])
         return None
+
+    def iter_candidates(self):
+        """Yield full candidate payloads directly from SQLite."""
+        conn = self._get_conn()
+        cursor = conn.cursor()
+        cursor.execute("SELECT raw_data FROM candidates ORDER BY candidate_id ASC")
+        try:
+            for row in cursor:
+                yield json.loads(row["raw_data"])
+        finally:
+            conn.close()
+
+    def iter_role_ranking_candidates(self, pool_limit: int = 3000):
+        """
+        Yield a strong technical shortlist for the Senior AI Engineer ranker.
+
+        The heavy document-informed scorer still makes the final decision; this
+        SQL stage keeps the UI responsive by filtering obvious non-fits first.
+        """
+        conn = self._get_conn()
+        cursor = conn.cursor()
+
+        def like_terms(column: str, terms: list[str]) -> tuple[str, list[str]]:
+            clauses = [f"{column} LIKE ?" for _ in terms]
+            return " OR ".join(clauses), [f"%{term}%" for term in terms]
+
+        role_terms = [
+            "AI Engineer", "ML Engineer", "Machine Learning", "Data Scientist",
+            "Applied Scientist", "Search", "Recommendation", "NLP", "Backend",
+            "Platform", "Data Engineer", "Software Engineer", "Developer",
+            "Architect", "Scientist", "Engineer",
+        ]
+        headline_terms = [
+            "AI", "ML", "Machine Learning", "NLP", "Search", "Recommendation",
+            "Retrieval", "Ranking", "Backend", "Data", "Platform", "Engineer",
+            "Scientist",
+        ]
+        skill_terms = [
+            "Python", "FAISS", "Pinecone", "Qdrant", "Weaviate", "Milvus",
+            "Elasticsearch", "OpenSearch", "Vector", "Embeddings", "RAG",
+            "Retrieval", "Ranking", "Recommendation", "NLP", "LLM",
+            "Fine-tuning", "LoRA", "QLoRA", "PEFT", "XGBoost", "MLOps",
+            "Docker", "Kubernetes", "Spark", "Kafka",
+        ]
+        city_terms = ["Pune", "Noida", "Hyderabad", "Mumbai", "Delhi", "Gurgaon", "Bangalore", "Bengaluru"]
+
+        role_where, role_params = like_terms("current_role", role_terms)
+        headline_where, headline_params = like_terms("headline", headline_terms)
+        skill_where, skill_params = like_terms("skills", skill_terms)
+        where_clause = f"""
+            years_of_experience BETWEEN 3 AND 13
+            AND ({role_where} OR {headline_where} OR {skill_where})
+        """
+
+        score_clauses: list[str] = [
+            "CASE WHEN years_of_experience BETWEEN 5 AND 9 THEN 12 ELSE 0 END",
+            "CASE WHEN years_of_experience BETWEEN 4 AND 12 THEN 5 ELSE 0 END",
+        ]
+        score_params: list[str] = []
+
+        weighted_terms = [
+            ("current_role", ["ML Engineer", "Machine Learning", "AI Engineer", "Data Scientist", "Applied Scientist", "Search", "Recommendation", "NLP"], 18),
+            ("current_role", ["Engineer", "Scientist", "Developer", "Architect"], 8),
+            ("headline", ["Retrieval", "Ranking", "Search", "Recommendation", "Machine Learning", "NLP", "AI", "ML"], 7),
+            ("skills", ["Python"], 13),
+            ("skills", ["FAISS", "Pinecone", "Qdrant", "Weaviate", "Milvus", "Elasticsearch", "OpenSearch"], 10),
+            ("skills", ["Vector", "Embeddings", "RAG", "Retrieval", "Ranking", "Recommendation"], 9),
+            ("skills", ["NLP", "LLM", "Fine-tuning", "LoRA", "QLoRA", "PEFT", "XGBoost"], 6),
+            ("skills", ["MLOps", "Docker", "Kubernetes", "Spark", "Kafka"], 4),
+            ("location", city_terms, 4),
+        ]
+
+        for column, terms, weight in weighted_terms:
+            for term in terms:
+                score_clauses.append(f"CASE WHEN {column} LIKE ? THEN {weight} ELSE 0 END")
+                score_params.append(f"%{term}%")
+
+        score_expr = " + ".join(score_clauses)
+        query = f"""
+            SELECT raw_data
+            FROM candidates
+            WHERE {where_clause}
+            ORDER BY ({score_expr}) DESC, candidate_id ASC
+            LIMIT ?
+        """
+        params = role_params + headline_params + skill_params + score_params + [pool_limit]
+        cursor.execute(query, params)
+        try:
+            for row in cursor:
+                yield json.loads(row["raw_data"])
+        finally:
+            conn.close()
