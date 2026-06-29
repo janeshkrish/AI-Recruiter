@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import os
 from functools import lru_cache
-from typing import Optional
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -28,39 +27,6 @@ class DatasetSettings(BaseSettings):
 
     model_config = SettingsConfigDict(
         env_prefix="DATASET_", env_file=".env", extra="ignore"
-    )
-
-
-class EmbeddingSettings(BaseSettings):
-    """Embedding model configuration."""
-
-    # We use all-MiniLM-L6-v2 by default as it's fast and sufficient for FAISS
-    model_name: str = "sentence-transformers/all-MiniLM-L6-v2"
-    dimension: int = 384
-    batch_size: int = 128
-    device: str = "cpu"  # Auto-detected if cuda is available
-
-    model_config = SettingsConfigDict(
-        env_prefix="EMBEDDING_", env_file=".env", extra="ignore"
-    )
-
-
-class LLMSettings(BaseSettings):
-    """LLM Provider Configuration."""
-
-    provider: str = "openai"  # openai or deepseek
-    openai_api_key: Optional[str] = None
-    deepseek_api_key: Optional[str] = None
-
-    # Model names
-    openai_model: str = "gpt-4o"
-    deepseek_model: str = "deepseek-chat"
-
-    # Set to True to skip real API calls during dev
-    simulation_mode: bool = True
-
-    model_config = SettingsConfigDict(
-        env_prefix="LLM_", env_file=".env", extra="ignore"
     )
 
 
@@ -105,8 +71,6 @@ class Settings(BaseSettings):
     """Global application settings."""
 
     dataset: DatasetSettings = DatasetSettings()
-    embeddings: EmbeddingSettings = EmbeddingSettings()
-    llm: LLMSettings = LLMSettings()
     weights: ScoringWeights = ScoringWeights()
     pipeline: PipelineSettings = PipelineSettings()
 

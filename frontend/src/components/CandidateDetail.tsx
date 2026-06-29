@@ -36,15 +36,25 @@ export default function CandidateDetail({ candidate }: Props) {
   ];
 
   // Score bar data
-  const scoreBreakdown = [
-    { name: 'Technical', value: candidate.skill_match, color: '#111111' },
-    { name: 'Career', value: candidate.experience_match, color: '#222222' },
-    { name: 'Behavioral', value: candidate.behavioral_score || 50, color: '#333333' },
-    { name: 'Potential', value: candidate.potential_score, color: '#444444' },
-    { name: 'Semantic', value: candidate.semantic_similarity, color: '#555555' },
-  ];
+  const scoreBreakdown = candidate.score_breakdown && Object.keys(candidate.score_breakdown).length > 0
+    ? [
+        { name: 'Production ML', value: candidate.score_breakdown.production_ml_experience || 0, color: '#0f766e' },
+        { name: 'Retrieval/Ranking', value: candidate.score_breakdown.retrieval_ranking_experience || 0, color: '#b15c3e' },
+        { name: 'Vector DBs', value: candidate.score_breakdown.vector_databases || 0, color: '#7257a3' },
+        { name: 'Python', value: candidate.score_breakdown.python_engineering || 0, color: '#c48733' },
+        { name: 'Evaluation', value: candidate.score_breakdown.evaluation_frameworks || 0, color: '#b44f5d' },
+      ]
+    : [
+        { name: 'Technical', value: candidate.skill_match, color: '#0f766e' },
+        { name: 'Career', value: candidate.experience_match, color: '#b15c3e' },
+        { name: 'Behavioral', value: candidate.behavioral_score || 50, color: '#7257a3' },
+        { name: 'Potential', value: candidate.potential_score, color: '#c48733' },
+        { name: 'Semantic', value: candidate.semantic_similarity, color: '#b44f5d' },
+      ];
 
   const hasFlags = candidate.anti_pattern_flags && candidate.anti_pattern_flags.length > 0;
+  const topEvidence = candidate.top_matching_evidence || [];
+  const missingRequirements = candidate.missing_requirements || [];
 
   return (
     <div className="max-w-4xl mx-auto p-8 space-y-6">
@@ -140,6 +150,37 @@ export default function CandidateDetail({ candidate }: Props) {
         </div>
       </motion.div>
 
+      <motion.div
+        className="glass-card p-6 border-l-2 border-l-[var(--color-accent-blue)]"
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.15 }}
+      >
+        <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+          <div>
+            <h3 className="text-sm font-bold text-[var(--color-text-primary)] mb-3 flex items-center gap-2">
+              <Target size={16} className="text-[var(--color-accent-blue)]" />
+              Role Fit Reasoning
+            </h3>
+            <p className="text-sm text-[var(--color-text-secondary)] leading-relaxed">
+              {candidate.reasoning}
+            </p>
+          </div>
+          <div className="flex shrink-0 flex-wrap gap-2 md:justify-end">
+            {candidate.rank && (
+              <span className="px-2.5 py-1 text-xs font-semibold rounded-lg bg-[var(--color-pill-bg)] text-[var(--color-pill-text)] border border-[var(--color-pill-border)]">
+                Rank #{candidate.rank}
+              </span>
+            )}
+            {candidate.hiring_recommendation && (
+              <span className="px-2.5 py-1 text-xs font-semibold rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                {candidate.hiring_recommendation}
+              </span>
+            )}
+          </div>
+        </div>
+      </motion.div>
+
       {/* ─── Strengths + Risks First ─── */}
       <div className="grid grid-cols-2 gap-6">
         {/* Strengths */}
@@ -157,6 +198,18 @@ export default function CandidateDetail({ candidate }: Props) {
               <div key={i} className="text-xs text-[var(--color-text-secondary)] flex items-start gap-2 leading-relaxed">
                 <BadgeCheck size={12} className="text-[var(--color-accent-emerald)] mt-0.5 shrink-0" />
                 {r.replace(/^⚠\s*/, '').trim()}
+              </div>
+            ))}
+            {topEvidence.map((evidence, i) => (
+              <div key={`top-evidence-${i}`} className="text-xs text-[var(--color-text-secondary)] flex items-start gap-2 leading-relaxed">
+                <BadgeCheck size={12} className="text-[var(--color-accent-emerald)] mt-0.5 shrink-0" />
+                {evidence}
+              </div>
+            ))}
+            {candidate.production_evidence?.slice(0, 2).map((evidence, i) => (
+              <div key={`production-${i}`} className="text-xs text-[var(--color-text-secondary)] flex items-start gap-2 leading-relaxed">
+                <BadgeCheck size={12} className="text-[var(--color-accent-emerald)] mt-0.5 shrink-0" />
+                {evidence}
               </div>
             ))}
           </div>
@@ -191,6 +244,12 @@ export default function CandidateDetail({ candidate }: Props) {
             ) : (
               <div className="text-xs text-[var(--color-text-tertiary)] italic">No major risk factors detected. Solid baseline match.</div>
             )}
+            {missingRequirements.slice(0, 3).map((gap, i) => (
+              <div key={`gap-${i}`} className="text-xs text-[var(--color-text-secondary)] flex items-start gap-2 px-3 py-2 rounded-lg bg-[var(--color-surface-pressed)] border border-[var(--color-border-subtle)]">
+                <AlertTriangle size={12} className="mt-0.5 shrink-0 text-amber-400" />
+                {gap}
+              </div>
+            ))}
 
             {candidate.anti_pattern_penalty < 1.0 && (
               <div className="mt-3 pt-3 border-t border-[var(--color-border-subtle)]">
@@ -208,7 +267,8 @@ export default function CandidateDetail({ candidate }: Props) {
               {candidate.score > 80 ? <BadgeCheck size={14} className="shrink-0" /> :
                candidate.potential_score > 70 ? <Target size={14} className="shrink-0" /> :
                <Circle size={14} className="shrink-0" />}
-              {candidate.score > 80 ? 'Strong Buy. Interview immediately.' :
+              {candidate.hiring_recommendation ? `${candidate.hiring_recommendation}. Proceed with recruiter screen.` :
+               candidate.score > 80 ? 'Strong Hire. Interview immediately.' :
                candidate.potential_score > 70 ? 'High Potential. Evaluate for growth.' :
                'Standard Fit. Proceed with screen.'}
             </div>

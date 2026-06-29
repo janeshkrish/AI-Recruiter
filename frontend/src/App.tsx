@@ -15,6 +15,7 @@ type ThemeMode = 'light' | 'dark';
 
 export interface Candidate {
   candidate_id: string;
+  rank?: number;
   score: number;
   skill_match: number;
   experience_match: number;
@@ -28,6 +29,16 @@ export interface Candidate {
   anti_pattern_flags: string[];
   anti_pattern_penalty: number;
   candidate_details: any;
+  overall_score?: number;
+  hiring_recommendation?: string;
+  top_matching_evidence?: string[];
+  missing_requirements?: string[];
+  risk_factors?: string[];
+  production_evidence?: string[];
+  behavioral_evidence?: string[];
+  jd_alignment_score?: number;
+  score_breakdown?: Record<string, number>;
+  scoring_weights?: Record<string, number>;
 }
 
 export interface ParsedJD {

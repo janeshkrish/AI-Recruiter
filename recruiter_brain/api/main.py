@@ -1,14 +1,7 @@
-"""
-FastAPI Backend
-================
-
-REST API endpoints for the AI Recruiter system.
-Maintains in-memory FAISS index and candidate metadata.
-"""
+"""FastAPI wrapper for the offline Redrob ranker."""
 
 from __future__ import annotations
 
-import os
 import csv
 from contextlib import asynccontextmanager
 from io import StringIO
@@ -17,81 +10,32 @@ from typing import Any
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
-from loguru import logger
 from pydantic import BaseModel, Field
-from cachetools import TTLCache
 
-from recruiter_brain.agents.recruiter_agent import RecruiterAgent
-from recruiter_brain.config import get_settings
-from recruiter_brain.data.dataset_loader import DatasetLoader
-from recruiter_brain.data.dataset_preprocessor import DatasetPreprocessor
-from recruiter_brain.embeddings.embedding_service import EmbeddingService
-from recruiter_brain.embeddings.faiss_store import FAISSVectorStore
 from recruiter_brain.data.sqlite_store import SQLiteStore
-from recruiter_brain.scoring.document_ranker import DocumentInformedRanker
+from src.parser.jd_analyzer import DEFAULT_REDROB_JD, JDAnalyzer
+from src.ranking.ranker import OfflineRanker
 
 
-# Global instances initialized during startup
 app_state: dict[str, Any] = {}
-role_ranking_cache = TTLCache(maxsize=8, ttl=900)
+role_ranking_cache: dict[str, list[dict[str, Any]]] = {}
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Lifecycle manager: initialize models and load dataset into memory/FAISS."""
-    logger.info("Initializing AI Recruiter Engine...")
-    settings = get_settings()
-    
-    # 1. Initialize core services
-    embedding_service = EmbeddingService()
-    vector_store = FAISSVectorStore()
-    
-    # 1.5 Initialize SQLite Cache
-    logger.info("Initializing SQLite Cache...")
-    sqlite_store = SQLiteStore()
-    app_state["sqlite_store"] = sqlite_store
-    
-    # 2. If FAISS is empty, build it from the dataset
-    if vector_store.is_empty():
-        logger.info("FAISS index empty. Building from dataset...")
-        loader = DatasetLoader()
-        preprocessor = DatasetPreprocessor()
-        
-        # Load batch of candidates (chunking is better but we load all if limit=-1)
-        candidates = loader.load_candidates_batch(limit=settings.dataset.chunk_size)
-        preprocessed = preprocessor.preprocess_batch(candidates)
-        
-        if not preprocessed:
-            logger.warning("No candidates loaded to index!")
-        else:
-            embeddings = embedding_service.generate_candidate_embeddings(preprocessed)
-            vector_store.add_embeddings(embeddings, preprocessed)
-            vector_store.save()
-            
-    # 3. Initialize Agent
-    agent = RecruiterAgent(vector_store=vector_store, embedding_service=embedding_service)
-    
-    # Store in global state
-    app_state["agent"] = agent
-    app_state["vector_store"] = vector_store
-    
-    logger.info("AI Recruiter Engine Ready.")
-    
+    app_state["sqlite_store"] = SQLiteStore()
     yield
-    
-    # Cleanup
-    logger.info("Shutting down engine...")
     app_state.clear()
+    role_ranking_cache.clear()
 
 
 app = FastAPI(
-    title="AI Recruiter Brain API",
-    description="Multi-dimensional candidate ranking system using FAISS and real datasets.",
-    version="2.0.0",
-    lifespan=lifespan
+    title="AI Recruiter Offline API",
+    description="Deterministic offline candidate ranking with no hosted LLM calls.",
+    version="3.0.0",
+    lifespan=lifespan,
 )
 
-# Allow CORS for UI
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -101,23 +45,14 @@ app.add_middleware(
 )
 
 
-# --- Request/Response Models ---
-
 class RankRequest(BaseModel):
     job_description: str = Field(..., description="The raw JD text")
     custom_weights: dict[str, float] | None = None
 
-class CopilotRequest(BaseModel):
-    question: str
-    candidates: list[dict[str, Any]]
-
-class BattleRequest(BaseModel):
-    candidate1_id: str
-    candidate2_id: str
-
 
 class CandidateScore(BaseModel):
     candidate_id: str
+    rank: int | None = None
     score: float
     skill_match: float
     experience_match: float
@@ -131,6 +66,16 @@ class CandidateScore(BaseModel):
     anti_pattern_flags: list[str] = Field(default_factory=list)
     anti_pattern_penalty: float = 1.0
     candidate_details: dict[str, Any] = Field(default_factory=dict)
+    overall_score: float | None = None
+    hiring_recommendation: str | None = None
+    top_matching_evidence: list[str] = Field(default_factory=list)
+    missing_requirements: list[str] = Field(default_factory=list)
+    risk_factors: list[str] = Field(default_factory=list)
+    production_evidence: list[str] = Field(default_factory=list)
+    behavioral_evidence: list[str] = Field(default_factory=list)
+    jd_alignment_score: float | None = None
+    score_breakdown: dict[str, float] = Field(default_factory=dict)
+    scoring_weights: dict[str, float] = Field(default_factory=dict)
 
 
 class RankResponse(BaseModel):
@@ -145,6 +90,16 @@ class RoleRankingRow(BaseModel):
     score: float
     reasoning: str
     candidate: dict[str, Any] = Field(default_factory=dict)
+    overall_score: float | None = None
+    hiring_recommendation: str | None = None
+    top_matching_evidence: list[str] = Field(default_factory=list)
+    missing_requirements: list[str] = Field(default_factory=list)
+    risk_factors: list[str] = Field(default_factory=list)
+    production_evidence: list[str] = Field(default_factory=list)
+    behavioral_evidence: list[str] = Field(default_factory=list)
+    jd_alignment_score: float | None = None
+    score_breakdown: dict[str, float] = Field(default_factory=dict)
+    scoring_weights: dict[str, float] = Field(default_factory=dict)
 
 
 class RoleRankingResponse(BaseModel):
@@ -154,199 +109,50 @@ class RoleRankingResponse(BaseModel):
     rows: list[RoleRankingRow]
 
 
-# --- Endpoints ---
-
 @app.get("/api/health")
 async def health_check():
-    """Service health status."""
-    return {"status": "healthy", "vector_store_initialized": "vector_store" in app_state}
+    return {
+        "status": "healthy",
+        "ranking_mode": "offline_deterministic",
+        "network_required_for_ranking": False,
+        "sqlite_initialized": "sqlite_store" in app_state,
+    }
 
 
 @app.post("/api/rank", response_model=RankResponse)
 async def rank_candidates(request: RankRequest):
-    """Execute the full ranking pipeline for the given Job Description."""
-    agent: RecruiterAgent = app_state.get("agent")
-    if not agent:
-        raise HTTPException(status_code=503, detail="Agent not initialized")
-        
-    try:
-        results = await agent.run_pipeline(request.job_description, custom_weights=request.custom_weights)
-        return results
-    except Exception as e:
-        logger.exception("Ranking failed")
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.get("/api/landscape")
-async def get_talent_landscape(limit: int = 200):
-    """Run PCA to compress FAISS embeddings into 2D coordinates for the UI Scatter Plot."""
-    vs: FAISSVectorStore = app_state.get("vector_store")
-    if not vs or not vs.metadata or vs.is_empty():
-        return {"points": []}
-    
-    try:
-        import numpy as np
-        from sklearn.decomposition import PCA
-        
-        # Get up to 'limit' vectors
-        vectors = vs.index.reconstruct_n(0, min(limit, vs.index.ntotal))
-        
-        # We need a fallback if we don't have enough data
-        if len(vectors) < 3:
-            return {"points": []}
-            
-        pca = PCA(n_components=3)
-        coords = pca.fit_transform(vectors)
-        
-        points = []
-        for i, coord in enumerate(coords):
-            # Normalize to 0-100 scale for UI
-            points.append({
-                "candidate_id": vs.metadata[i]["candidate_id"],
-                "x": float(coord[0]) * 10,
-                "y": float(coord[1]) * 10,
-                "z": float(coord[2]) * 10
-            })
-            
-        return {"points": points}
-    except ImportError:
-        logger.warning("scikit-learn not installed, returning empty landscape")
-        return {"points": []}
-    except Exception as e:
-        logger.exception("Landscape generation failed")
-        return {"points": []}
-
-@app.post("/api/copilot")
-async def copilot_chat(request: CopilotRequest):
-    """Heuristic explanation engine returning natural language about candidates."""
-    q = request.question.lower()
-    cands = request.candidates
-    
-    if not cands:
-        return {"answer": "I need candidate data to provide insights."}
-        
-    c1 = cands[0]
-    
-    if "why" in q and "rank" in q:
-        reasons = c1.get("reasoning", "Strong overall match.")
-        return {"answer": f"Candidate {c1['candidate_id']} ranked highly because: {reasons}. Their potential score is {c1.get('potential_score', 0)}%."}
-        
-    if "compare" in q and len(cands) >= 2:
-        c2 = cands[1]
-        c1_tech = c1.get("skill_match", 0)
-        c2_tech = c2.get("skill_match", 0)
-        better_tech = c1['candidate_id'] if c1_tech > c2_tech else c2['candidate_id']
-        diff = abs(c1_tech - c2_tech)
-        return {"answer": f"Comparing the top two: {better_tech} has a {diff:.1f}% higher technical score. However, look at their Potential Score and Transferable Skills to make the final call."}
-        
-    if "hidden gem" in q:
-        gems = [c for c in cands if c.get("potential_score", 0) > 85 and c.get("experience_match", 100) < 60]
-        if gems:
-            return {"answer": f"Yes! Look at {gems[0]['candidate_id']}. They have massive learning potential ({gems[0]['potential_score']}%) despite lower traditional experience."}
-        return {"answer": "No obvious hidden gems in this immediate batch. Try adjusting the What-If weights!"}
-    
-    if "risk" in q or "flag" in q:
-        flagged = [c for c in cands if c.get("anti_pattern_flags")]
-        if flagged:
-            flags = flagged[0].get("anti_pattern_flags", [])
-            return {"answer": f"⚠ {flagged[0]['candidate_id']} has flags: {', '.join(flags)}. Consider these carefully."}
-        return {"answer": "No significant risk flags detected in the current shortlist."}
-    
-    if "behavioral" in q or "respond" in q or "available" in q:
-        best_behavioral = max(cands, key=lambda c: c.get("behavioral_score", 0))
-        insights = best_behavioral.get("behavioral_insights", [])
-        return {"answer": f"Most engaged candidate: {best_behavioral['candidate_id']} (Behavioral: {best_behavioral.get('behavioral_score', 0):.0f}%). Key signals: {'; '.join(insights[:3])}"}
-        
-    return {"answer": "Based on the Multi-Agent evaluation, these candidates represent the absolute top tier for your specific JD requirements. Is there a specific metric you'd like me to explain?"}
+    if not request.job_description.strip():
+        raise HTTPException(status_code=400, detail="Job description is required")
+    return _rank_response(request.job_description, request.custom_weights)
 
 
-@app.post("/api/battle")
-async def candidate_battle(request: BattleRequest):
-    """Battle mode: Compares two candidates and predicts a winner."""
-    vs: FAISSVectorStore = app_state.get("vector_store")
-    if not vs or not vs.metadata:
-        raise HTTPException(status_code=503, detail="Index not ready")
-        
-    c1 = next((m for m in vs.metadata if m["candidate_id"] == request.candidate1_id), None)
-    c2 = next((m for m in vs.metadata if m["candidate_id"] == request.candidate2_id), None)
-    
-    if not c1 or not c2:
-        raise HTTPException(status_code=404, detail="Candidate not found")
-        
-    return {
-        "candidate1": request.candidate1_id,
-        "candidate2": request.candidate2_id,
-        "winner": request.candidate1_id if c1.get("years_of_experience", 0) > c2.get("years_of_experience", 0) else request.candidate2_id,
-        "reasoning": f"In a direct matchup, {request.candidate1_id} shows different strengths. (Full logic implemented in Agent)."
-    }
+@app.post("/api/rank/role", response_model=RankResponse)
+async def rank_role_candidates(request: RankRequest):
+    if not request.job_description.strip():
+        raise HTTPException(status_code=400, detail="Job description is required")
+    return _rank_response(request.job_description, request.custom_weights)
 
-@app.get("/api/stats")
-async def get_stats():
-    """Return dataset statistics."""
-    sqlite_store: SQLiteStore = app_state.get("sqlite_store")
-    vs: FAISSVectorStore = app_state.get("vector_store")
-    
-    if not sqlite_store:
-        raise HTTPException(status_code=503, detail="Database not ready")
-    
-    stats = sqlite_store.get_stats()
-    
-    # Add FAISS stats
-    if vs and vs.index:
-        stats["indexed_candidates"] = vs.index.ntotal
-    else:
-        stats["indexed_candidates"] = 0
-        
-    return stats
 
 @app.get("/api/candidates")
 async def get_candidates(
-    page: int = 1, 
-    limit: int = 25, 
+    page: int = 1,
+    limit: int = 25,
     search: str = "",
     skills: str = "",
     min_experience: float = 0.0,
-    current_role: str = ""
+    current_role: str = "",
 ):
-    """Return dataset candidates with server-side pagination."""
-    sqlite_store: SQLiteStore = app_state.get("sqlite_store")
-    if not sqlite_store:
-        raise HTTPException(status_code=503, detail="Database not ready")
-        
-    filters = {
-        "skills": skills,
-        "min_experience": min_experience,
-        "current_role": current_role
-    }
+    sqlite_store = _store()
+    filters = {"skills": skills, "min_experience": min_experience, "current_role": current_role}
     return sqlite_store.get_paginated_candidates(page=page, limit=limit, search=search, filters=filters)
-
-
-def _get_role_ranking(limit: int = 100) -> list[dict[str, Any]]:
-    sqlite_store: SQLiteStore = app_state.get("sqlite_store")
-    if not sqlite_store:
-        raise HTTPException(status_code=503, detail="Database not ready")
-
-    safe_limit = max(1, min(limit, 500))
-    cache_key = f"redrob-senior-ai-engineer:{safe_limit}"
-    if cache_key not in role_ranking_cache:
-        ranker = DocumentInformedRanker()
-        role_ranking_cache[cache_key] = ranker.rank(
-            sqlite_store.iter_role_ranking_candidates(pool_limit=3000),
-            top_n=safe_limit,
-        )
-    return role_ranking_cache[cache_key]
 
 
 @app.get("/api/candidates/role-ranking", response_model=RoleRankingResponse)
 async def get_role_ranking(limit: int = 100):
-    """Return document-informed candidate ranking rows for the attached Redrob role."""
-    rows = _get_role_ranking(limit=limit)
+    rows = _get_role_rows(DEFAULT_REDROB_JD, limit=limit)
     return {
         "role": "Senior AI Engineer - Founding Team",
-        "source_documents": [
-            "job_description.docx",
-            "submission_spec.docx",
-            "redrob_signals_doc.docx",
-        ],
+        "source_documents": ["job_description.docx", "candidate_schema.json", "submission_spec.docx"],
         "total": len(rows),
         "rows": rows,
     }
@@ -354,8 +160,7 @@ async def get_role_ranking(limit: int = 100):
 
 @app.get("/api/candidates/role-ranking.csv")
 async def download_role_ranking_csv(limit: int = 100):
-    """Download the document-informed ranking as submission-spec CSV."""
-    rows = _get_role_ranking(limit=limit)
+    rows = _get_role_rows(DEFAULT_REDROB_JD, limit=100)
     output = StringIO(newline="")
     writer = csv.DictWriter(output, fieldnames=["candidate_id", "rank", "score", "reasoning"])
     writer.writeheader()
@@ -364,68 +169,123 @@ async def download_role_ranking_csv(limit: int = 100):
             {
                 "candidate_id": row["candidate_id"],
                 "rank": row["rank"],
-                "score": row["score"],
+                "score": f"{float(row['score']):.4f}",
                 "reasoning": row["reasoning"],
             }
         )
     output.seek(0)
-    filename = "redrob_senior_ai_engineer_ranking.csv"
     return StreamingResponse(
         iter([output.getvalue()]),
         media_type="text/csv; charset=utf-8",
-        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        headers={"Content-Disposition": 'attachment; filename="redrob_senior_ai_engineer_ranking.csv"'},
     )
 
 
 @app.get("/api/candidates/{candidate_id}")
 async def get_candidate(candidate_id: str):
-    """Return full raw data for a specific candidate."""
-    sqlite_store: SQLiteStore = app_state.get("sqlite_store")
-    if not sqlite_store:
-        raise HTTPException(status_code=503, detail="Database not ready")
-        
-    data = sqlite_store.get_candidate_by_id(candidate_id)
+    data = _store().get_candidate_by_id(candidate_id)
     if not data:
         raise HTTPException(status_code=404, detail="Candidate not found")
     return data
 
 
+@app.get("/api/stats")
+async def get_stats():
+    return _store().get_stats()
+
+
 @app.get("/api/jobs")
 async def get_jobs():
-    """Return available jobs. For this challenge, we just have the one JD file."""
     return {
         "jobs": [
             {
                 "id": "JOB_001",
-                "title": "Senior AI Engineer — Founding Team",
+                "title": "Senior AI Engineer - Founding Team",
                 "location": "Pune/Noida, India",
-                "file": "job_description.docx"
+                "ranking_mode": "offline_deterministic",
             }
         ]
     }
 
+
 @app.get("/api/pipeline/analytics")
 async def get_pipeline_analytics():
-    """Return analytics data for the Pipeline Analytics page."""
-    from recruiter_brain.scoring.skill_graph import SkillTransferGraph
-    
-    graph = SkillTransferGraph()
-    graph_stats = graph.get_graph_stats()
-    
-    vs: FAISSVectorStore = app_state.get("vector_store")
-    
     return {
-        "skill_graph": graph_stats,
-        "vector_store": {
-            "total_indexed": vs.index.ntotal if vs and vs.index else 0,
-            "dimension": vs.dimension if vs else 0,
-        },
-        "agents": [
-            {"name": "Technical Fit", "id": "agent_a", "description": "Skill Transfer Graph + strict matching"},
-            {"name": "Career Intelligence", "id": "agent_b", "description": "Promotion velocity + experience depth"},
-            {"name": "Behavioral Intelligence", "id": "agent_c", "description": "23 Redrob signals analysis"},
-            {"name": "Potential Intelligence", "id": "agent_d", "description": "Learning velocity + domain alignment"},
-            {"name": "Anti-Pattern Detection", "id": "agent_e", "description": "Consulting-only, title-hopping, keyword-stuffing"},
+        "ranking_mode": "offline_deterministic",
+        "network_required_for_ranking": False,
+        "feature_groups": [
+            "production_ml_experience",
+            "retrieval_ranking_experience",
+            "vector_databases",
+            "python_engineering",
+            "evaluation_frameworks",
+            "startup_product_mindset",
+            "behavioral_signals",
+            "career_progression",
+            "location_relocation",
+            "open_source_github",
         ],
-        "weights": get_settings().weights.as_dict
+    }
+
+
+def _store() -> SQLiteStore:
+    sqlite_store: SQLiteStore | None = app_state.get("sqlite_store")
+    if not sqlite_store:
+        raise HTTPException(status_code=503, detail="Database not ready")
+    return sqlite_store
+
+
+def _get_role_rows(jd_text: str, limit: int = 100, weights: dict[str, float] | None = None) -> list[dict[str, Any]]:
+    safe_limit = max(1, min(limit, 500))
+    cache_key = f"{hash(jd_text)}:{safe_limit}:{weights}"
+    if cache_key not in role_ranking_cache:
+        role_ranking_cache[cache_key] = OfflineRanker(jd_text=jd_text, weights=weights).rank_records(
+            _store().iter_candidates(),
+            top_n=safe_limit,
+        )
+    return role_ranking_cache[cache_key]
+
+
+def _rank_response(jd_text: str, weights: dict[str, float] | None = None) -> dict[str, Any]:
+    rows = _get_role_rows(jd_text, limit=100, weights=weights)
+    stats = _store().get_stats()
+    return {
+        "ranked_candidates": [_row_to_candidate_score(row) for row in rows],
+        "parsed_jd": JDAnalyzer().to_dict(JDAnalyzer().analyze(jd_text)),
+        "pipeline_stats": {
+            "total_indexed": stats.get("total_applicants", 0),
+            "retrieved": stats.get("total_applicants", 0),
+            "scored": stats.get("total_applicants", 0),
+            "returned": len(rows),
+        },
+    }
+
+
+def _row_to_candidate_score(row: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "candidate_id": row["candidate_id"],
+        "rank": row["rank"],
+        "score": row["overall_score"],
+        "skill_match": row["skill_match"],
+        "experience_match": row["experience_match"],
+        "semantic_similarity": row["semantic_similarity"],
+        "location_match": row["location_match"],
+        "potential_score": row["potential_score"],
+        "behavioral_score": row["behavioral_score"],
+        "transferable_matches": row["transferable_matches"],
+        "reasoning": row["reasoning"],
+        "behavioral_insights": row["behavioral_insights"],
+        "anti_pattern_flags": row["anti_pattern_flags"],
+        "anti_pattern_penalty": row["anti_pattern_penalty"],
+        "candidate_details": row["candidate_details"],
+        "overall_score": row["overall_score"],
+        "hiring_recommendation": row["hiring_recommendation"],
+        "top_matching_evidence": row["top_matching_evidence"],
+        "missing_requirements": row["missing_requirements"],
+        "risk_factors": row["risk_factors"],
+        "production_evidence": row["production_evidence"],
+        "behavioral_evidence": row["behavioral_evidence"],
+        "jd_alignment_score": row["jd_alignment_score"],
+        "score_breakdown": row["score_breakdown"],
+        "scoring_weights": row["scoring_weights"],
     }

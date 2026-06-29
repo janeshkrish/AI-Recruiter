@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
 import {
   Loader2, Zap, FileText, Brain, Target,
-  Sparkles, Clock, Clipboard, RotateCcw
+  Sparkles, Clock, Clipboard, RotateCcw, Download
 } from 'lucide-react';
 import type { Candidate, ParsedJD, PipelineStats } from '../App';
 import CandidateList from '../components/CandidateList';
@@ -107,9 +107,15 @@ export default function AnalyzeJD() {
   };
 
   const handleAnalyze = async () => {
-    if (!jdText.trim()) return;
+    const jobDescription = jdText.trim();
+    if (!jobDescription) return;
     setIsSearching(true);
-    resetAnalysis();
+    setCandidates([]);
+    setSelectedCandidate(null);
+    setParsedJD(null);
+    setPipelineStats(null);
+    setCurrentStep(-1);
+    sessionStorage.removeItem(ANALYZE_RESULTS_STORAGE_KEY);
     setShowOverlay(true);
     setOverlayComplete(false);
 
@@ -119,8 +125,8 @@ export default function AnalyzeJD() {
     }
 
     try {
-      const res = await axios.post(`${API}/api/rank`, {
-        job_description: jdText,
+      const res = await axios.post(`${API}/api/rank/role`, {
+        job_description: jobDescription,
       });
 
       setOverlayComplete(true);
@@ -146,6 +152,40 @@ export default function AnalyzeJD() {
       setIsSearching(false);
       setCurrentStep(-1);
     }
+  };
+
+  const handleDownloadCsv = () => {
+    if (candidates.length === 0) return;
+
+    const escapeCsv = (value: unknown) => {
+      const text = String(value ?? '');
+      return /[",\n\r]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+    };
+
+    const rows = candidates.slice(0, 100).map((candidate, index) => {
+      const rank = candidate.rank ?? index + 1;
+      const score = candidate.score > 1 ? candidate.score / 100 : candidate.score;
+      return [
+        candidate.candidate_id,
+        rank,
+        score.toFixed(4),
+        candidate.reasoning,
+      ];
+    });
+    const csv = [
+      ['candidate_id', 'rank', 'score', 'reasoning'],
+      ...rows,
+    ].map((row) => row.map(escapeCsv).join(',')).join('\n');
+
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'redrob_senior_ai_engineer_ranking.csv';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   const fillSample = () => {
@@ -257,16 +297,26 @@ export default function AnalyzeJD() {
                 <div className="w-[350px] h-full min-h-0 flex flex-col shrink-0 overflow-hidden bg-[linear-gradient(180deg,var(--color-bg-elevated),var(--color-bg-surface))] backdrop-blur-sm">
                   {parsedJD && (
                     <div className="p-4 border-b border-[var(--color-border-subtle)] shrink-0">
-                      <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center justify-between gap-2 mb-3">
                         <div className="text-xs font-semibold text-[var(--color-text-tertiary)] uppercase tracking-widest">Parsed JD</div>
-                        <button
-                          type="button"
-                          onClick={resetAnalysis}
-                          className="inline-flex items-center gap-2.5 rounded-2xl border border-[var(--color-border-subtle)] bg-[var(--color-button-soft)] px-6 py-3 text-base font-semibold text-[var(--color-button-soft-text)] shadow-[0_12px_28px_var(--color-shadow-soft)] transition-colors hover:bg-[var(--color-button-soft-hover)]"
-                        >
-                          <RotateCcw size={18} />
-                          Start Over
-                        </button>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={handleDownloadCsv}
+                            className="inline-flex items-center gap-1.5 rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-button-solid)] px-3 py-2 text-xs font-semibold text-[var(--color-button-solid-text)] shadow-[0_10px_22px_var(--color-shadow-soft)] transition-colors hover:bg-[var(--color-button-solid-hover)]"
+                          >
+                            <Download size={14} />
+                            CSV
+                          </button>
+                          <button
+                            type="button"
+                            onClick={resetAnalysis}
+                            className="inline-flex items-center gap-1.5 rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-button-soft)] px-3 py-2 text-xs font-semibold text-[var(--color-button-soft-text)] shadow-[0_10px_22px_var(--color-shadow-soft)] transition-colors hover:bg-[var(--color-button-soft-hover)]"
+                          >
+                            <RotateCcw size={14} />
+                            Start Over
+                          </button>
+                        </div>
                       </div>
                       <div className="flex flex-wrap gap-1.5 mb-2">
                         {parsedJD.skills.slice(0, 8).map((s, i) => (

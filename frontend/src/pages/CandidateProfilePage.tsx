@@ -18,6 +18,46 @@ const fetchCandidate = async (id: string) => {
   return res.data;
 };
 
+function buildRankedCandidateFromRoleRanking(row: any, candidateDetails: any): Candidate {
+  const breakdown = row?.score_breakdown || {};
+  const riskFactors = row?.risk_factors || [];
+  const antiFlags = riskFactors.filter((risk: string) => !risk.toLowerCase().includes('no major risk'));
+  const skillMatch = (
+    (breakdown.retrieval_ranking_experience || 0) +
+    (breakdown.vector_databases || 0) +
+    (breakdown.python_engineering || 0) +
+    (breakdown.evaluation_frameworks || 0)
+  ) / 4;
+
+  return {
+    candidate_id: row.candidate_id,
+    rank: row.rank,
+    score: row.overall_score ?? row.score * 100,
+    skill_match: Number(skillMatch.toFixed(1)),
+    experience_match: breakdown.production_ml_experience || 0,
+    semantic_similarity: row.jd_alignment_score ?? row.score * 100,
+    location_match: breakdown.location_relocation || 0,
+    potential_score: breakdown.startup_product_mindset || 0,
+    behavioral_score: breakdown.behavioral_signals || 0,
+    transferable_matches: row.top_matching_evidence?.length || 0,
+    reasoning: row.reasoning,
+    behavioral_insights: row.behavioral_evidence || [],
+    anti_pattern_flags: antiFlags,
+    anti_pattern_penalty: antiFlags.length > 0 ? 0.86 : 1,
+    candidate_details: candidateDetails,
+    overall_score: row.overall_score,
+    hiring_recommendation: row.hiring_recommendation,
+    top_matching_evidence: row.top_matching_evidence || [],
+    missing_requirements: row.missing_requirements || [],
+    risk_factors: riskFactors,
+    production_evidence: row.production_evidence || [],
+    behavioral_evidence: row.behavioral_evidence || [],
+    jd_alignment_score: row.jd_alignment_score,
+    score_breakdown: breakdown,
+    scoring_weights: row.scoring_weights || {},
+  };
+}
+
 // Group skills by category
 function groupSkills(skills: any[]): Record<string, any[]> {
   const groups: Record<string, any[]> = {};
@@ -40,8 +80,9 @@ export default function CandidateProfilePage() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Candidate data might be passed from ranking results via location state
-  const rankedCandidate: Candidate | undefined = location.state?.candidate;
+  // Candidate ranking context might be passed from Analyze JD or Role Ranking.
+  const stateCandidate: Candidate | undefined = location.state?.candidate;
+  const roleRanking = location.state?.roleRanking;
   const returnTo = location.state?.returnTo || '/candidates';
   const returnLabel = returnTo === '/analyze' ? 'Results' : 'Candidates';
 
@@ -91,6 +132,12 @@ export default function CandidateProfilePage() {
   const education = data.education || [];
   const redrob = data.redrob_signals || {};
   const groupedSkills = groupSkills(skills);
+  const rankedCandidate: Candidate | undefined = stateCandidate
+    ? { ...stateCandidate, candidate_details: stateCandidate.candidate_details || data }
+    : roleRanking
+      ? buildRankedCandidateFromRoleRanking(roleRanking, data)
+      : undefined;
+  const missingRequirements = rankedCandidate?.missing_requirements || [];
 
   return (
     <div className="flex-1 overflow-y-auto relative z-10">
@@ -214,6 +261,42 @@ export default function CandidateProfilePage() {
             {/* Match Analysis (show first when ranked data is available) */}
             {rankedCandidate && (
               <motion.div
+                className="glass-card p-6 border-l-2 border-l-[var(--color-accent-blue)]"
+                variants={sectionVariants}
+                initial="hidden"
+                whileInView="visible"
+                viewport={{ once: true, margin: '-50px' }}
+                transition={{ duration: 0.5 }}
+              >
+                <h3 className="text-sm font-bold text-[var(--color-text-primary)] mb-3 flex items-center gap-2">
+                  <Target size={16} className="text-[var(--color-accent-blue)]" />
+                  Role Fit Reasoning
+                </h3>
+                <p className="text-sm text-[var(--color-text-secondary)] leading-relaxed">
+                  {rankedCandidate.reasoning}
+                </p>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {rankedCandidate.rank && (
+                    <span className="px-2.5 py-1 text-xs font-semibold rounded-lg bg-[var(--color-pill-bg)] text-[var(--color-pill-text)] border border-[var(--color-pill-border)]">
+                      Rank #{rankedCandidate.rank}
+                    </span>
+                  )}
+                  {rankedCandidate.hiring_recommendation && (
+                    <span className="px-2.5 py-1 text-xs font-semibold rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                      {rankedCandidate.hiring_recommendation}
+                    </span>
+                  )}
+                  {rankedCandidate.jd_alignment_score !== undefined && (
+                    <span className="px-2.5 py-1 text-xs font-semibold rounded-lg bg-[var(--color-surface-pressed)] text-[var(--color-text-secondary)] border border-[var(--color-border-subtle)]">
+                      JD Alignment {rankedCandidate.jd_alignment_score.toFixed(1)}
+                    </span>
+                  )}
+                </div>
+              </motion.div>
+            )}
+
+            {rankedCandidate && (
+              <motion.div
                 className="grid grid-cols-1 md:grid-cols-2 gap-6"
                 variants={sectionVariants}
                 initial="hidden"
@@ -240,6 +323,23 @@ export default function CandidateProfilePage() {
                   </div>
                 </div>
 
+                {rankedCandidate.top_matching_evidence && rankedCandidate.top_matching_evidence.length > 0 && (
+                  <div className="glass-card p-6 border-l-2 border-l-emerald-500 md:col-span-2">
+                    <h3 className="text-sm font-bold text-[var(--color-text-primary)] mb-4 flex items-center gap-2">
+                      <BadgeCheck size={16} className="text-[var(--color-accent-emerald)]" />
+                      Top Matching Evidence
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+                      {[...rankedCandidate.top_matching_evidence, ...(rankedCandidate.production_evidence || []).slice(0, 2)].map((evidence, i) => (
+                        <div key={i} className="text-xs text-[var(--color-text-secondary)] flex items-start gap-2 leading-relaxed">
+                          <BadgeCheck size={12} className="text-[var(--color-accent-emerald)] mt-0.5 shrink-0" />
+                          {evidence}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 {/* Gaps / Risks */}
                 <div className="glass-card p-6 border-l-2 border-l-rose-500">
                   <h3 className="text-sm font-bold text-[var(--color-text-primary)] mb-4 flex items-center gap-2">
@@ -257,6 +357,12 @@ export default function CandidateProfilePage() {
                     ) : (
                       <div className="text-xs text-[var(--color-text-tertiary)] italic">No major risk factors detected.</div>
                     )}
+                    {missingRequirements.slice(0, 3).map((gap, i) => (
+                      <div key={`gap-${i}`} className="text-xs text-[var(--color-text-secondary)] flex items-start gap-2 px-3 py-2 rounded-lg bg-[var(--color-surface-pressed)] border border-[var(--color-border-subtle)]">
+                        <AlertTriangle size={12} className="mt-0.5 shrink-0 text-amber-400" />
+                        {gap}
+                      </div>
+                    ))}
                     {rankedCandidate.transferable_matches > 0 && (
                       <div className="mt-3 pt-3 border-t border-[var(--color-border-subtle)]">
                         <div className="text-[10px] text-[var(--color-text-tertiary)] uppercase tracking-wider mb-1">Transferable Skills</div>

@@ -1,21 +1,10 @@
-# ==============================================================================
-# AI Recruiter Brain — Docker Compose
-# ==============================================================================
-# Usage:
-#   docker-compose up -d              # Run CPU version
-# ==============================================================================
-
-version: '3.8'
+version: "3.8"
 
 services:
-  # ----------------------------------------------------------------------------
-  # FastAPI Backend (Ranking Engine & FAISS)
-  # ----------------------------------------------------------------------------
   api:
     build:
       context: .
       dockerfile: Dockerfile
-      target: api
     container_name: recruiter-api
     ports:
       - "8000:8000"
@@ -28,28 +17,7 @@ services:
       - PYTHONUNBUFFERED=1
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health', timeout=5).read()"]
       interval: 30s
       timeout: 10s
       retries: 3
-
-  # ----------------------------------------------------------------------------
-  # Streamlit Dashboard
-  # ----------------------------------------------------------------------------
-  ui:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      target: ui
-    container_name: recruiter-ui
-    ports:
-      - "8501:8501"
-    volumes:
-      - ./recruiter_brain/ui:/app/recruiter_brain/ui
-      - ./.env:/app/.env
-    environment:
-      - API_URL=http://api:8000
-    depends_on:
-      api:
-        condition: service_healthy
-    restart: unless-stopped

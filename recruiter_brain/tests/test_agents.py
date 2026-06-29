@@ -63,7 +63,7 @@ def sample_candidate() -> CandidateProfile:
                 company_tier=1,
             ),
             CareerEntry(
-                company="Anthropic",
+                company="FrontierAI Labs",
                 title="Senior ML Engineer",
                 seniority_level=Seniority.SENIOR,
                 start_date="2022-06",
@@ -76,7 +76,7 @@ def sample_candidate() -> CandidateProfile:
         ],
         total_experience_years=6.0,
         current_title="Senior ML Engineer",
-        current_company="Anthropic",
+        current_company="FrontierAI Labs",
         skills=[
             "Python", "PyTorch", "TensorFlow", "NLP",
             "Deep Learning", "Machine Learning", "Docker",

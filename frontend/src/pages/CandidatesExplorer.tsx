@@ -13,6 +13,16 @@ interface RoleRankingRow {
   rank: number;
   score: number;
   reasoning: string;
+  overall_score?: number;
+  hiring_recommendation?: string;
+  top_matching_evidence?: string[];
+  missing_requirements?: string[];
+  risk_factors?: string[];
+  production_evidence?: string[];
+  behavioral_evidence?: string[];
+  jd_alignment_score?: number;
+  score_breakdown?: Record<string, number>;
+  scoring_weights?: Record<string, number>;
   candidate?: {
     name?: string;
     current_title?: string;
@@ -281,7 +291,8 @@ export default function CandidatesExplorer() {
                   {roleRankingData?.rows?.map((row, i) => (
                     <motion.tr
                       key={row.candidate_id}
-                      className="hover:bg-[#fff8f1] transition-colors group"
+                      className="hover:bg-[var(--color-surface-pressed)] transition-colors group cursor-pointer"
+                      onClick={() => navigate(`/candidate/${row.candidate_id}`, { state: { returnTo: '/candidates', roleRanking: row } })}
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       transition={{ delay: Math.min(i * 0.01, 0.25) }}
@@ -296,7 +307,10 @@ export default function CandidatesExplorer() {
                       <td className="py-3.5 px-6">
                         <button
                           type="button"
-                          onClick={() => navigate(`/candidate/${row.candidate_id}`, { state: { returnTo: '/candidates' } })}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            navigate(`/candidate/${row.candidate_id}`, { state: { returnTo: '/candidates', roleRanking: row } });
+                          }}
                           className="font-semibold text-[var(--color-text-primary)] text-sm hover:text-[var(--color-accent-blue)] transition-colors text-left"
                         >
                           {row.candidate_id}
@@ -342,7 +356,7 @@ export default function CandidatesExplorer() {
                 {data?.data?.map((candidate: any, i: number) => (
                   <motion.tr
                     key={candidate.candidate_id}
-                    className="hover:bg-[#fff8f1] transition-colors group"
+                    className="hover:bg-[var(--color-surface-pressed)] transition-colors group"
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ delay: i * 0.02 }}

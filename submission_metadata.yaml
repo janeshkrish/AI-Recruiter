@@ -1,0 +1,57 @@
+team_name: "SoulX"
+
+primary_contact:
+  name: "Janesh Krishna R"
+  email: "janeshkrishna12@gmail.com"
+  phone: "+91 9994806667"
+
+team_members:
+  - name: "Janesh Krishna R"
+    email: "janeshkrishna12@gmail.com"
+    role: "Backend Engineer"
+  - name: "Shrija Dhanalakshmi SM"
+    email: "shrijasm@gmail.com"
+    role: "ML Engineer"
+  - name: "Thivakar T"
+    email: "thivakart2006@gmail.com"
+    role: "Frontend Engineer"
+
+github_repo: "https://github.com/janeshkrish/AI-Recruiter.git"
+sandbox_link: "TODO https://huggingface.co/spaces/YOUR_USERNAME/redrob-ranker"
+reproduce_command: "python rank.py --candidates ./candidates.jsonl --out ./submission.csv"
+
+compute:
+  platform: "Local Windows machine"
+  cpu_cores: 8
+  ram_gb: 16
+  python_version: "3.11"
+  os: "Windows"
+  uses_gpu_for_inference: false
+  has_network_during_ranking: false
+  pre_computation_required: false
+  pre_computation_time_minutes: 0
+
+ai_tools_used:
+  - "ChatGPT"
+  - "Codex"
+
+ai_usage_summary: |
+  Used AI assistance for code implementation, validation, and UI wiring.
+  Candidate ranking is performed locally with deterministic rule-based scoring.
+  No candidate data is sent to an external model during ranking.
+
+methodology_summary: |
+  Deterministic document-informed ranker for the Senior AI Engineer JD. The
+  scorer reads full candidate profiles, career history, skills, and Redrob
+  signals, then applies the requested rubric: production ML, retrieval/ranking,
+  vector databases, Python, evaluation frameworks, startup/product mindset,
+  behavioral signals, career progression, location/relocation, and GitHub/open
+  source. It explicitly downweights consulting-only, non-technical, research-only,
+  framework-only, CV/speech-only, short-tenure, and keyword-stuffed profiles.
+
+declarations:
+  read_submission_spec: true
+  code_is_original_work: true
+  no_collusion: true
+  honeypot_check_done: true
+  reproduction_tested: true

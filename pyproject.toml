@@ -9,4 +9,4 @@ description = "AI Recruiter backend and frontend workspace"
 requires-python = ">=3.10"
 
 [tool.setuptools.packages.find]
-include = ["recruiter_brain*"]
+include = ["recruiter_brain*", "src*"]
