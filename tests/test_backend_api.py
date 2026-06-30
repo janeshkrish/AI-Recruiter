@@ -51,8 +51,33 @@ class BackendApiTests(unittest.TestCase):
         payload = response.json()
         self.assertEqual(payload["total"], 3)
         self.assertEqual([row["rank"] for row in payload["rows"]], [1, 2, 3])
+        self.assertEqual(payload["rows"][0]["candidate_id"], "CAND_0046064")
         self.assertTrue(payload["rows"][0]["candidate_id"].startswith("CAND_"))
         self.assertIn("reasoning", payload["rows"][0])
+
+    def test_custom_jd_ranking_uses_uploaded_role(self) -> None:
+        response = self.client.post(
+            "/api/rank/role",
+            json={
+                "job_description": (
+                    "Job Title: Frontend React Developer\n"
+                    "Location: Bangalore or Pune\n"
+                    "Experience: 3-6 years\n"
+                    "Must have React, TypeScript, JavaScript, HTML, CSS, REST APIs, Redux, Tailwind. "
+                    "Nice to have Next.js and GraphQL."
+                )
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        skills = {skill.lower() for skill in payload["parsed_jd"]["skills"]}
+        self.assertIn("react", skills)
+        self.assertIn("typescript", skills)
+        self.assertEqual(payload["pipeline_stats"]["returned"], 100)
+
+        top_profile = payload["ranked_candidates"][0]["candidate_details"]["profile"]
+        self.assertIn("frontend", top_profile["current_title"].lower())
+        self.assertNotEqual(payload["ranked_candidates"][0]["candidate_id"], "CAND_0046064")
 
     def test_analytics_copilot_and_resume_upload(self) -> None:
         analytics = self.client.get("/api/pipeline/analytics")
