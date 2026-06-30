@@ -8,6 +8,19 @@ from pathlib import Path
 REQUIRED_HEADER = ["candidate_id", "rank", "score", "reasoning"]
 EXPECTED_ROWS = 100
 CANDIDATE_ID_PATTERN = re.compile(r"^CAND_[0-9]{7}$")
+ALLOWED_REQUIREMENTS = {"numpy", "pandas", "rapidfuzz", "scikit-learn", "sentence-transformers"}
+PROHIBITED_CODE_PATTERNS = (
+    re.compile(r"^\s*(?:from|import)\s+openai\b", re.IGNORECASE | re.MULTILINE),
+    re.compile(r"^\s*(?:from|import)\s+anthropic\b", re.IGNORECASE | re.MULTILINE),
+    re.compile(r"^\s*(?:from|import)\s+cohere\b", re.IGNORECASE | re.MULTILINE),
+    re.compile(r"^\s*(?:from|import)\s+groq\b", re.IGNORECASE | re.MULTILINE),
+    re.compile(r"^\s*(?:from|import)\s+together\b", re.IGNORECASE | re.MULTILINE),
+    re.compile(r"^\s*(?:from|import)\s+google\.generativeai\b", re.IGNORECASE | re.MULTILINE),
+    re.compile(r"^\s*(?:from|import)\s+requests\b", re.IGNORECASE | re.MULTILINE),
+    re.compile(r"^\s*(?:from|import)\s+httpx\b", re.IGNORECASE | re.MULTILINE),
+    re.compile(r"^\s*(?:from|import)\s+aiohttp\b", re.IGNORECASE | re.MULTILINE),
+    re.compile(r"urllib\.request", re.IGNORECASE),
+)
 
 
 class SubmissionValidator:
@@ -34,6 +47,34 @@ class SubmissionValidator:
             return ["CSV must be UTF-8 encoded."]
 
         errors.extend(self.validate_rows(rows))
+        return errors
+
+    def validate_repository(self, root: str | Path) -> list[str]:
+        repo = Path(root)
+        errors: list[str] = []
+
+        if (repo / ".env").exists():
+            errors.append(".env exists in the workspace; remove local API keys/secrets before submission.")
+        if (repo / "recruiter_brain").exists():
+            errors.append("Legacy recruiter_brain package exists; submission architecture must use src/.")
+
+        requirements = repo / "requirements.txt"
+        if requirements.exists():
+            for line_number, line in enumerate(requirements.read_text(encoding="utf-8").splitlines(), start=1):
+                dependency = line.strip()
+                if not dependency or dependency.startswith("#"):
+                    continue
+                package = re.split(r"[<>=!~\[]", dependency, maxsplit=1)[0].strip().lower()
+                if package not in ALLOWED_REQUIREMENTS:
+                    errors.append(f"requirements.txt:{line_number}: dependency '{package}' is outside the allowed offline set.")
+
+        for path in self._iter_executable_files(repo):
+            text = path.read_text(encoding="utf-8", errors="ignore")
+            for pattern in PROHIBITED_CODE_PATTERNS:
+                if pattern.search(text):
+                    errors.append(f"{path.relative_to(repo)} contains prohibited hosted-API/network code pattern: {pattern.pattern}")
+                    break
+
         return errors
 
     def validate_rows(self, rows: list[list[str]]) -> list[str]:
@@ -89,3 +130,20 @@ class SubmissionValidator:
                 errors.append(f"Tie at ranks {rank_a}/{rank_b} must sort candidate_id ascending.")
 
         return errors
+
+    def _iter_executable_files(self, repo: Path):
+        ignored_parts = {
+            ".git",
+            "venv",
+            ".venv",
+            "__pycache__",
+            ".cache",
+            "[PUB] India_runs_data_and_ai_challenge",
+            "backend",
+            "frontend",
+        }
+        for pattern in ("*.py", "Dockerfile", "docker-compose.yml", "pyproject.toml"):
+            for path in repo.rglob(pattern):
+                if any(part in ignored_parts for part in path.parts):
+                    continue
+                yield path

@@ -17,8 +17,8 @@ team_members:
     role: "Frontend Engineer"
 
 github_repo: "https://github.com/janeshkrish/AI-Recruiter.git"
-sandbox_link: "TODO https://huggingface.co/spaces/YOUR_USERNAME/redrob-ranker"
-reproduce_command: "python rank.py --candidates ./candidates.jsonl --out ./submission.csv"
+sandbox_link: "Docker recipe: docker compose -f docker-compose.yml up --build ranker"
+reproduce_command: "python rank.py --candidates \"[PUB] India_runs_data_and_ai_challenge/[PUB] India_runs_data_and_ai_challenge/India_runs_data_and_ai_challenge/candidates.jsonl\" --jd jd.txt --out redrob_senior_ai_engineer_ranking.csv"
 
 compute:
   platform: "Local Windows machine"
@@ -42,12 +42,15 @@ ai_usage_summary: |
 
 methodology_summary: |
   Deterministic document-informed ranker for the Senior AI Engineer JD. The
-  scorer reads full candidate profiles, career history, skills, and Redrob
-  signals, then applies the requested rubric: production ML, retrieval/ranking,
-  vector databases, Python, evaluation frameworks, startup/product mindset,
-  behavioral signals, career progression, location/relocation, and GitHub/open
-  source. It explicitly downweights consulting-only, non-technical, research-only,
-  framework-only, CV/speech-only, short-tenure, and keyword-stuffed profiles.
+  scorer reads full candidate profiles, career history, skills, education,
+  certifications, projects, languages, and Redrob signals, then applies the
+  requested rubric: production ML, retrieval/ranking, vector databases, Python,
+  evaluation frameworks, startup/product mindset, behavioral signals, career
+  progression, location/relocation, and GitHub/open source. It explicitly
+  downweights consulting-only, non-technical, research-only, framework-only,
+  CV/speech-only, robotics-only, short-tenure, inconsistent, and keyword-stuffed
+  profiles. Reasoning is generated from templates populated only with computed
+  evidence.
 
 declarations:
   read_submission_spec: true

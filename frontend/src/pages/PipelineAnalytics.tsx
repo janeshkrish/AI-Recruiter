@@ -8,8 +8,9 @@ import {
   Brain, Target, Shield, TrendingUp, Layers, Zap, GitBranch, Network,
   Database, Activity, Sparkles, Award
 } from 'lucide-react';
+import { API_BASE_URL } from '../lib/api';
 
-const API = 'http://127.0.0.1:8000';
+const API = API_BASE_URL;
 
 const fetchAnalytics = async () => {
   const res = await axios.get(`${API}/api/pipeline/analytics`);

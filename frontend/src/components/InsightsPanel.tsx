@@ -8,6 +8,7 @@ import {
 import axios from 'axios';
 import type { Candidate } from '../App';
 import { motion } from 'framer-motion';
+import { API_BASE_URL } from '../lib/api';
 
 export default function InsightsPanel({
   candidates,
@@ -41,7 +42,7 @@ export default function InsightsPanel({
 
     try {
       const res = await axios.post(
-        'http://127.0.0.1:8000/api/copilot',
+        `${API_BASE_URL}/api/copilot`,
         {
           question: q,
           candidates: candidates.slice(0, 5),
@@ -49,7 +50,7 @@ export default function InsightsPanel({
       );
 
       setCopilotResponse(res.data.answer);
-    } catch (e) {
+    } catch {
       setCopilotResponse(
         'Backend connection unavailable.'
       );

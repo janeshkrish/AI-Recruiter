@@ -3,13 +3,14 @@ import { motion } from 'framer-motion';
 import { X, Briefcase, MapPin, Activity, Target, Star } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import axios from 'axios';
+import { API_BASE_URL } from '../lib/api';
 
 interface Props {
   candidateId: string;
   onClose: () => void;
 }
 
-const API = 'http://127.0.0.1:8000';
+const API = API_BASE_URL;
 
 const fetchCandidate = async (id: string) => {
   const res = await axios.get(`${API}/api/candidates/${id}`);

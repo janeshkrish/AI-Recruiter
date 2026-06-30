@@ -20,10 +20,13 @@ class TemplateReasoningGenerator:
 
         parts = [
             f"{scorecard.recommendation}: {title} at {company} with {years:.1f} yrs",
-            f"{core_hits}/5 core production AI/retrieval groups are evidenced",
+            f"JD match: {core_hits}/5 core production AI/retrieval groups are evidenced",
         ]
         if evidence:
-            parts.append("evidence: " + ", ".join(evidence[:4]))
+            parts.append("relevant skills: " + ", ".join(evidence[:4]))
+        production = self.production_evidence(features)
+        if production:
+            parts.append("production systems: " + production[0])
         if weaknesses:
             parts.append("missing/weak: " + ", ".join(weaknesses[:3]))
         if risks:
@@ -78,12 +81,14 @@ class TemplateReasoningGenerator:
 
     def production_evidence(self, features: FeatureSet) -> list[str]:
         evidence = []
+        if features.values.get("production_ai_months", 0.0) > 0:
+            evidence.append(f"{features.values['production_ai_months'] / 12.0:.1f} inferred years in production AI-adjacent roles")
+        elif features.values.get("production_delivery_months", 0.0) > 0:
+            evidence.append(f"{features.values['production_delivery_months'] / 12.0:.1f} inferred years with shipping/deployment language")
         for key in ("production_ai", "retrieval", "ranking", "search_systems", "recommendation_systems"):
             terms = features.evidence.get(key, [])
             if terms:
                 evidence.append(f"{key.replace('_', ' ')} terms: {', '.join(terms[:4])}")
-        if features.values.get("production_ai_months", 0.0) > 0:
-            evidence.append(f"{features.values['production_ai_months'] / 12.0:.1f} inferred years in production AI-adjacent roles")
         return evidence or ["No explicit production ML deployment evidence found"]
 
     def behavioral_evidence(self, features: FeatureSet) -> list[str]:

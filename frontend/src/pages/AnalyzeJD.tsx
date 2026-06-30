@@ -9,8 +9,9 @@ import type { Candidate, ParsedJD, PipelineStats } from '../App';
 import CandidateList from '../components/CandidateList';
 import CandidateDetail from '../components/CandidateDetail';
 import AIProcessingOverlay from '../components/AIProcessingOverlay';
+import { API_BASE_URL } from '../lib/api';
 
-const API = 'http://127.0.0.1:8000';
+const API = API_BASE_URL;
 const ANALYZE_RESULTS_STORAGE_KEY = 'analyze-jd-results';
 
 const SAMPLE_JD = `Job Description: Senior AI Engineer — Founding Team

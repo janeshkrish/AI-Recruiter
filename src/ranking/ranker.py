@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import csv
+import heapq
 import json
 from pathlib import Path
 from typing import Any, Iterable, Iterator
@@ -31,18 +32,33 @@ class OfflineRanker:
         return self.rank_candidates(self.parser.parse_records(iter(records)), top_n=top_n)
 
     def rank_candidates(self, candidates: Iterable[ParsedCandidate], top_n: int = 100) -> list[dict[str, Any]]:
-        scored: list[dict[str, Any]] = []
+        if top_n <= 0:
+            raise ValueError("top_n must be positive")
+
+        heap: list[tuple[float, int, int, ParsedCandidate, Any, Any]] = []
+        sequence = 0
         for candidate in candidates:
             if not candidate.candidate_id:
                 continue
             features = self.feature_engineer.transform(candidate, self.jd)
             scorecard = self.scorer.score(features)
-            reasoning = self.reasoner.generate(candidate, features, scorecard)
-            row = self._row(candidate, features, scorecard, reasoning)
-            scored.append(row)
+            score_key = round(scorecard.final_score, 4)
+            candidate_number = self._candidate_numeric_id(candidate.candidate_id)
+            heap_item = (score_key, -candidate_number, sequence, candidate, features, scorecard)
+            sequence += 1
+            if len(heap) < top_n:
+                heapq.heappush(heap, heap_item)
+            elif heap_item[:2] > heap[0][:2]:
+                heapq.heapreplace(heap, heap_item)
 
-        scored.sort(key=lambda row: (-round(float(row["score"]), 4), str(row["candidate_id"])))
-        top = scored[:top_n]
+        if len(heap) < top_n:
+            raise ValueError(f"Expected at least {top_n} valid candidates; found {len(heap)}.")
+
+        top_items = sorted(heap, key=lambda item: (-item[0], item[3].candidate_id))
+        top: list[dict[str, Any]] = []
+        for _, _, _, candidate, features, scorecard in top_items:
+            reasoning = self.reasoner.generate(candidate, features, scorecard)
+            top.append(self._row(candidate, features, scorecard, reasoning))
         for rank, row in enumerate(top, start=1):
             row["rank"] = rank
         return top
@@ -121,6 +137,12 @@ class OfflineRanker:
         for value in scorecard.penalties.values():
             product *= value
         return round(product, 3)
+
+    def _candidate_numeric_id(self, candidate_id: str) -> int:
+        try:
+            return int(candidate_id.rsplit("_", 1)[1])
+        except (IndexError, ValueError):
+            return 10**12
 
 
 def iter_jsonl(path: str | Path) -> Iterator[dict[str, Any]]:

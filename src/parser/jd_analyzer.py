@@ -45,7 +45,6 @@ class JDAnalyzer:
         "production ml",
         "embeddings",
         "sentence transformers",
-        "openai embeddings",
         "bge",
         "e5",
         "retrieval",

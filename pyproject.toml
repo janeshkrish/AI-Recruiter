@@ -5,8 +5,14 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "ai-recruiter"
 version = "0.1.0"
-description = "AI Recruiter backend and frontend workspace"
+description = "Deterministic offline Redrob candidate ranker"
 requires-python = ">=3.10"
+dependencies = [
+    "numpy>=1.26.0",
+    "pandas>=2.2.0",
+    "rapidfuzz>=3.9.0",
+    "scikit-learn>=1.6.0",
+]
 
 [tool.setuptools.packages.find]
-include = ["recruiter_brain*", "src*"]
+include = ["src*", "backend*"]

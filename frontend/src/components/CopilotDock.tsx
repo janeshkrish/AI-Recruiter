@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, Send, Bot } from 'lucide-react';
 import axios from 'axios';
 import type { Candidate } from '../App';
+import { API_BASE_URL } from '../lib/api';
 
 interface Props {
   candidates: Candidate[];
@@ -54,7 +55,7 @@ export default function CopilotDock({ candidates }: Props) {
       );
 
       const res = await axios.post(
-        'http://127.0.0.1:8000/api/copilot',
+        `${API_BASE_URL}/api/copilot`,
         {
           question: userMsg,
           candidates: topCandidates,
@@ -71,7 +72,7 @@ export default function CopilotDock({ candidates }: Props) {
             'No response received from Copilot.',
         },
       ]);
-    } catch (err) {
+    } catch {
       setMessages(prev => [
         ...prev,
         {

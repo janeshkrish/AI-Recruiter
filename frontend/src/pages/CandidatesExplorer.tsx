@@ -5,8 +5,9 @@ import { motion } from 'framer-motion';
 import axios from 'axios';
 import { Search, Filter, ChevronLeft, ChevronRight, Briefcase, MapPin, X, Download, Sparkles, ArrowLeft, Trophy } from 'lucide-react';
 import AutocompleteInput from '../components/AutocompleteInput';
+import { API_BASE_URL } from '../lib/api';
 
-const API = 'http://127.0.0.1:8000';
+const API = API_BASE_URL;
 
 interface RoleRankingRow {
   candidate_id: string;

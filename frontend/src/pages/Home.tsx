@@ -7,8 +7,9 @@ import {
   Brain, Shield, Target, Layers, GitBranch, Search, ArrowRight, Sparkles,
   Network, Gem, CheckCircle2
 } from 'lucide-react';
+import { API_BASE_URL } from '../lib/api';
 
-const API = 'http://127.0.0.1:8000';
+const API = API_BASE_URL;
 
 function AnimatedCounter({ target, suffix = '' }: { target: number; suffix?: string }) {
   const [count, setCount] = useState(0);

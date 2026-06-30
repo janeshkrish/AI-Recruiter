@@ -1,0 +1,27 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - AI_RECRUITER_APP_ENV=development
+      - AI_RECRUITER_DATASET_PATH=/app/data
+    volumes:
+      - ./[PUB] India_runs_data_and_ai_challenge/[PUB] India_runs_data_and_ai_challenge/India_runs_data_and_ai_challenge:/app/data:ro
+    mem_limit: 4g
+    cpus: 4
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    ports:
+      - "5173:5173"
+    environment:
+      - VITE_API_BASE_URL=http://127.0.0.1:8000
+    depends_on:
+      - backend
+    mem_limit: 1g
+    cpus: 2

@@ -26,7 +26,9 @@ def main() -> None:
     rows = ranker.rank_jsonl(args.candidates, top_n=100)
     ranker.write_submission_csv(rows, args.out)
 
-    errors = SubmissionValidator().validate_csv(args.out)
+    validator = SubmissionValidator()
+    errors = validator.validate_csv(args.out)
+    errors.extend(validator.validate_repository(Path(__file__).resolve().parent))
     if errors:
         for error in errors:
             print(f"- {error}")

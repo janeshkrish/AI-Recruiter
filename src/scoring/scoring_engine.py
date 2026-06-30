@@ -89,15 +89,21 @@ class WeightedScoringEngine:
     def _production_ml(self, v: dict[str, float]) -> float:
         return self._clamp(
             self._years_score(v.get("production_ai_months", 0.0), 48)
-            * 0.42
+            * 0.36
             + self._term_score(v, "production_ai")
-            * 0.22
+            * 0.18
             + self._years_score(v.get("ai_months", 0.0), 48)
-            * 0.16
+            * 0.12
+            + self._years_score(v.get("production_delivery_months", 0.0), 48)
+            * 0.10
             + self._clamp(v.get("product_company_months", 0.0) / 48.0)
-            * 0.10
+            * 0.08
             + v.get("senior_title_flag", 0.0)
-            * 0.10
+            * 0.08
+            + min(v.get("production_project_count", 0.0) / 2.0, 1.0)
+            * 0.04
+            + v.get("avg_relevant_skill_assessment_score", 0.0)
+            * 0.04
         )
 
     def _retrieval_ranking(self, v: dict[str, float]) -> float:
@@ -106,28 +112,33 @@ class WeightedScoringEngine:
         recommendation = max(self._years_score(v.get("recommendation_months", 0.0), 30), self._term_score(v, "recommendation_systems"))
         search = max(self._years_score(v.get("search_months", 0.0), 36), self._term_score(v, "search_systems"))
         embeddings = max(self._years_score(v.get("embeddings_months", 0.0), 24), self._term_score(v, "embeddings"))
-        return self._clamp((retrieval * 0.28) + (ranking * 0.28) + (recommendation * 0.14) + (search * 0.16) + (embeddings * 0.14))
+        project = min((v.get("retrieval_project_count", 0.0) + v.get("ranking_project_count", 0.0)) / 2.0, 1.0)
+        return self._clamp((retrieval * 0.26) + (ranking * 0.26) + (recommendation * 0.13) + (search * 0.15) + (embeddings * 0.13) + (project * 0.07))
 
     def _vector_db(self, v: dict[str, float]) -> float:
         return self._clamp(
             self._years_score(v.get("vector_db_months", 0.0), 24) * 0.35
             + self._term_score(v, "vector_db") * 0.45
-            + max(v.get("skill_vector_db_weighted_proficiency", 0.0), v.get("skill_vector_db_present", 0.0) * 0.55) * 0.20
+            + max(v.get("skill_vector_db_weighted_proficiency", 0.0), v.get("skill_vector_db_present", 0.0) * 0.55) * 0.16
+            + min(v.get("vector_project_count", 0.0) / 2.0, 1.0) * 0.04
         )
 
     def _python(self, v: dict[str, float]) -> float:
         return self._clamp(
             self._term_score(v, "python") * 0.36
-            + max(v.get("skill_python_weighted_proficiency", 0.0), v.get("skill_python_present", 0.0) * 0.55) * 0.44
-            + self._years_score(v.get("skill_python_months", 0.0), 36) * 0.20
+            + max(v.get("skill_python_weighted_proficiency", 0.0), v.get("skill_python_present", 0.0) * 0.55) * 0.40
+            + self._years_score(v.get("skill_python_months", 0.0), 36) * 0.18
+            + v.get("avg_relevant_skill_assessment_score", 0.0) * 0.06
         )
 
     def _evaluation(self, v: dict[str, float]) -> float:
         return self._clamp(
             self._years_score(v.get("evaluation_months", 0.0), 24) * 0.35
-            + self._term_score(v, "evaluation_metrics") * 0.40
-            + v.get("has_ab_testing", 0.0) * 0.18
-            + v.get("skill_evaluation_weighted_proficiency", 0.0) * 0.07
+            + self._term_score(v, "evaluation_metrics") * 0.36
+            + v.get("has_ab_testing", 0.0) * 0.16
+            + v.get("skill_evaluation_weighted_proficiency", 0.0) * 0.06
+            + min(v.get("evaluation_project_count", 0.0) / 2.0, 1.0) * 0.04
+            + min(v.get("high_relevant_assessment_count", 0.0) / 2.0, 1.0) * 0.03
         )
 
     def _startup_product(self, v: dict[str, float]) -> float:
@@ -136,7 +147,8 @@ class WeightedScoringEngine:
             + self._term_score(v, "product") * 0.26
             + self._years_score(v.get("startup_months", 0.0), 24) * 0.16
             + self._years_score(v.get("product_months", 0.0), 36) * 0.18
-            + self._years_score(v.get("product_company_months", 0.0), 48) * 0.15
+            + self._years_score(v.get("product_company_months", 0.0), 48) * 0.12
+            + v.get("current_company_product_industry_flag", 0.0) * 0.03
         )
 
     def _behavioral(self, v: dict[str, float]) -> float:
@@ -150,13 +162,15 @@ class WeightedScoringEngine:
             + v.get("profile_completeness", 0.0) * 0.10
             + min(v.get("saved_by_recruiters_30d", 0.0) / 8.0, 1.0) * 0.08
             + v.get("interview_completion_rate", 0.0) * 0.08
-            + v.get("github_activity_score", 0.0) / 100.0 * 0.06
+            + v.get("github_activity_score", 0.0) / 100.0 * 0.04
+            + ((v.get("verified_email", 0.0) + v.get("verified_phone", 0.0)) / 2.0) * 0.02
         )
 
     def _career_progression(self, v: dict[str, float]) -> float:
         tenure_score = 1.0 if v.get("avg_tenure_months", 0.0) >= 24 else 0.78 if v.get("avg_tenure_months", 0.0) >= 18 else 0.45 if v.get("avg_tenure_months", 0.0) >= 12 else 0.20
         exp_score = 1.0 if v.get("experience_in_target_band", 0.0) else self._clamp(v.get("total_years_experience", 0.0) / 7.0)
-        return self._clamp(exp_score * 0.38 + tenure_score * 0.24 + v.get("senior_title_flag", 0.0) * 0.18 + min(v.get("long_tenure_role_count", 0.0) / 2.0, 1.0) * 0.10 + (1.0 - min(v.get("short_tenure_role_count", 0.0) / 3.0, 1.0)) * 0.10)
+        education_score = max(v.get("cs_or_quant_education_flag", 0.0) * 0.7, v.get("education_tier_score", 0.0) * 0.3)
+        return self._clamp(exp_score * 0.36 + tenure_score * 0.22 + v.get("senior_title_flag", 0.0) * 0.16 + min(v.get("long_tenure_role_count", 0.0) / 2.0, 1.0) * 0.10 + (1.0 - min(v.get("short_tenure_role_count", 0.0) / 3.0, 1.0)) * 0.08 + education_score * 0.08)
 
     def _location(self, v: dict[str, float]) -> float:
         return self._clamp(v.get("location_or_relocation_fit", 0.0))
@@ -194,8 +208,16 @@ class WeightedScoringEngine:
         profile = min(v.get(f"{prefix}_profile_term_count", 0.0) / 3.0, 1.0)
         career = min(v.get(f"{prefix}_career_term_count", 0.0) / 4.0, 1.0)
         skills = min(v.get(f"{prefix}_skill_term_count", 0.0) / 3.0, 1.0)
+        structured = min(
+            (
+                v.get(f"{prefix}_certification_term_count", 0.0)
+                + v.get(f"{prefix}_project_term_count", 0.0)
+            )
+            / 2.0,
+            1.0,
+        )
         all_text = min(v.get(f"{prefix}_all_term_count", 0.0) / 6.0, 1.0)
-        return self._clamp(career * 0.42 + skills * 0.28 + profile * 0.18 + all_text * 0.12)
+        return self._clamp(career * 0.38 + skills * 0.25 + profile * 0.16 + structured * 0.10 + all_text * 0.11)
 
     def _years_score(self, months: float, target_months: float) -> float:
         return self._clamp(months / target_months)

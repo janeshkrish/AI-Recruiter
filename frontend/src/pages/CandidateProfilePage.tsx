@@ -10,8 +10,9 @@ import {
   Star, TrendingUp, Zap, BadgeCheck, Circle
 } from 'lucide-react';
 import type { Candidate } from '../App';
+import { API_BASE_URL } from '../lib/api';
 
-const API = 'http://127.0.0.1:8000';
+const API = API_BASE_URL;
 
 const fetchCandidate = async (id: string) => {
   const res = await axios.get(`${API}/api/candidates/${id}`);

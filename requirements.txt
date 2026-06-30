@@ -1,21 +1,7 @@
-# Offline Redrob submission dependencies
-#
-# Ranking is deterministic and CPU-only. It does not call hosted LLM APIs,
-# embedding inference APIs, or any network service during ranking.
+# Redrob offline ranking dependencies only.
+# No hosted LLM clients, HTTP clients, vector databases, or API servers are required.
 
 numpy>=1.26.0
 pandas>=2.2.0
-scikit-learn>=1.6.0
 rapidfuzz>=3.9.0
-
-# Local API/UI wrapper dependencies. These are not used by rank.py.
-fastapi==0.115.6
-uvicorn[standard]==0.34.0
-pydantic==2.10.4
-pydantic-settings==2.7.1
-python-dotenv==1.0.1
-loguru==0.7.3
-
-# Testing
-pytest==8.3.4
-httpx==0.28.1
+scikit-learn>=1.6.0

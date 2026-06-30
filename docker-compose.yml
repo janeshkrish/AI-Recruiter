@@ -1,23 +1,17 @@
-version: "3.8"
-
 services:
-  api:
+  ranker:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: recruiter-api
-    ports:
-      - "8000:8000"
+    network_mode: "none"
     volumes:
-      - ./.cache:/app/.cache
-      - ./[PUB] India_runs_data_and_ai_challenge:/app/[PUB] India_runs_data_and_ai_challenge
-      - ./.env:/app/.env
-    environment:
-      - DATASET_CACHE_DIR=/app/.cache
-      - PYTHONUNBUFFERED=1
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health', timeout=5).read()"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+      - ./:/app
+    command:
+      - python
+      - rank.py
+      - --candidates
+      - /app/[PUB] India_runs_data_and_ai_challenge/[PUB] India_runs_data_and_ai_challenge/India_runs_data_and_ai_challenge/candidates.jsonl
+      - --jd
+      - /app/jd.txt
+      - --out
+      - /app/redrob_senior_ai_engineer_ranking.csv

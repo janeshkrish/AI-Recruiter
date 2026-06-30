@@ -10,6 +10,7 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install -r requirements.txt
 
-COPY . .
+COPY rank.py pyproject.toml README.md ./
+COPY src ./src
 
-CMD ["uvicorn", "recruiter_brain.api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["python", "rank.py", "--help"]

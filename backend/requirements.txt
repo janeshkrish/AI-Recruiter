@@ -1,0 +1,11 @@
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+pydantic==2.10.4
+pydantic-settings==2.7.1
+python-multipart==0.0.20
+
+# Ranking engine dependencies
+numpy>=1.26.0
+pandas>=2.2.0
+rapidfuzz>=3.9.0
+scikit-learn>=1.6.0
