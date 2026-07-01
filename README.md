@@ -1,301 +1,547 @@
-# AI Recruiter Platform
+<p align="center">
+  <img src="https://img.shields.io/badge/Team-SOULX-b15c3e?style=for-the-badge&labelColor=1a1a2e" alt="Team SOULX" />
+  <img src="https://img.shields.io/badge/Python-3.11-3776ab?style=for-the-badge&logo=python&logoColor=white" alt="Python 3.11" />
+  <img src="https://img.shields.io/badge/Node.js-20+-339933?style=for-the-badge&logo=node.js&logoColor=white" alt="Node.js 20+" />
+  <img src="https://img.shields.io/badge/FastAPI-0.115-009688?style=for-the-badge&logo=fastapi&logoColor=white" alt="FastAPI" />
+  <img src="https://img.shields.io/badge/React-19-61dafb?style=for-the-badge&logo=react&logoColor=black" alt="React 19" />
+  <img src="https://img.shields.io/badge/Vite-8-646cff?style=for-the-badge&logo=vite&logoColor=white" alt="Vite 8" />
+  <img src="https://img.shields.io/badge/Docker-Ready-2496ed?style=for-the-badge&logo=docker&logoColor=white" alt="Docker Ready" />
+</p>
 
-Production-ready AI recruitment platform with a restored React frontend, a modular FastAPI backend, and a deterministic offline ranking engine for the Redrob hackathon submission.
+# 🤖 AI Recruiter — Intelligent Talent Ranking Platform
 
-The frontend user experience is preserved from the original project. The communication layer was refactored so all screens call a configurable backend base URL through `frontend/src/lib/api.ts`.
+> **A production-ready AI recruitment platform** that helps recruiters analyze job descriptions, explore candidate datasets, rank the most relevant profiles using 100+ deterministic features, and make data-driven hiring decisions — all without relying on external AI APIs.
 
-## Project Overview
+Built by **Team SOULX** for the [Redrob India Runs Data & AI Challenge](https://redrob.io).
 
-AI Recruiter helps recruiters inspect candidate profiles, analyze a role, rank the most relevant candidates, view pipeline analytics, ask deterministic copilot-style questions, and upload resumes for lightweight parsing.
+---
 
-The project has two execution modes:
+## 📋 Table of Contents
 
-- Application mode: React + FastAPI for local product usage.
-- Redrob submission mode: CPU-only offline batch ranking that writes the required top-100 CSV.
+- [Overview](#-overview)
+- [Key Features](#-key-features)
+- [Architecture](#-architecture)
+- [Tech Stack](#-tech-stack)
+- [Prerequisites](#-prerequisites)
+- [Getting Started](#-getting-started)
+  - [1. Clone the Repository](#1-clone-the-repository)
+  - [2. Backend Setup (Python)](#2-backend-setup-python)
+  - [3. Frontend Setup (Node.js)](#3-frontend-setup-nodejs)
+  - [4. Environment Configuration](#4-environment-configuration)
+  - [5. Run the Application](#5-run-the-application)
+- [Offline Ranking (Redrob Submission)](#-offline-ranking-redrob-submission)
+- [Docker Deployment](#-docker-deployment)
+- [API Reference](#-api-reference)
+- [AI Pipeline](#-ai-pipeline)
+- [Recommendation Engine](#-recommendation-engine)
+- [Testing](#-testing)
+- [Troubleshooting](#-troubleshooting)
+- [Team](#-team)
+- [License](#-license)
 
-Ranking uses deterministic feature engineering and weighted scoring. It does not call OpenAI, Gemini, Claude, Anthropic, Cohere, Groq, Together AI, HuggingFace Inference API, or any hosted model service during ranking. The offline batch runner is designed for CPU execution within the 5 minute challenge limit.
+---
 
-## Architecture
+## 🎯 Overview
 
-```text
+AI Recruiter is an end-to-end talent intelligence platform with **two execution modes**:
+
+| Mode | Purpose | Network Required? |
+|------|---------|:-:|
+| **🖥️ Application Mode** | Interactive web app (React + FastAPI) for browsing candidates, analyzing JDs, and exploring rankings | Yes (local only) |
+| **📦 Submission Mode** | CPU-only offline batch ranking that produces the required top-100 CSV | ❌ No |
+
+The ranking engine uses **deterministic feature engineering and weighted scoring** — it does **not** call OpenAI, Gemini, Claude, Anthropic, Cohere, Groq, Together AI, HuggingFace Inference API, or any hosted model service during ranking.
+
+---
+
+## ✨ Key Features
+
+### 🏠 Dashboard
+- Live dataset statistics with animated counters
+- Quick navigation to all platform modules
+- Dark/light theme with persistent preference
+
+### 📊 Dataset Explorer
+- Paginated browsing of 100K+ candidate profiles
+- Search by name, skills, or company
+- Filter by skills, minimum experience, and current role
+- Autocomplete suggestions from dataset
+
+### 🎯 JD Analyzer
+- Paste any job description and get AI-ranked candidates
+- Real-time processing overlay with pipeline visualization
+- Score breakdown: skill match, experience, semantic similarity, behavioral signals
+- Download ranked results as CSV
+
+### 🏆 Role Ranking
+- One-click Senior AI Engineer ranking across the full dataset
+- Medal-style top-3 highlighting (🥇🥈🥉)
+- Click any candidate to view their detailed profile
+
+### 👤 Candidate Profile
+- Comprehensive profile view: experience, education, skills, certifications, projects
+- AI-generated score breakdown with evidence-based reasoning
+- Risk factors and missing requirements analysis
+- Role ranking context when navigated from rankings
+
+### 📈 Pipeline Analytics
+- Radar charts for multi-agent scoring dimensions
+- Pipeline funnel visualization
+- Per-agent contribution breakdown
+
+### 🤖 Copilot
+- Deterministic Q&A about the candidate dataset
+- Dockable chat interface
+
+---
+
+## 🏗 Architecture
+
+```
 AI-Recruiter/
-  backend/                         # Production FastAPI application
-    app/
-      api/routes/                  # HTTP route modules
-      core/                        # config, logging, middleware, errors
-      repositories/                # dataset access
-      schemas/                     # Pydantic request/response models
-      services/                    # ranking, analytics, copilot, resume services
-  frontend/                        # Restored React/Vite UI
-    src/lib/api.ts                 # Backend base URL configuration
-  src/                             # Redrob-compliant offline ranking engine
-    parser/                        # candidate parser and JD analyzer
-    feature_engineering/           # 100+ deterministic engineered features
-    scoring/                       # normalized weighted scoring
-    ranking/                       # deterministic top-N ranker
-    reasoning/                     # template reasoning without hallucination
-    validation/                    # honeypot and submission validators
-  docs/
-    API.md                         # Complete API documentation
-    SANDBOX.md                     # Secure sandbox execution strategy
-  rank.py                          # Offline CSV generation entrypoint
-  Dockerfile                       # No-network Redrob batch runner
-  docker-compose.yml               # No-network ranking compose recipe
-  docker-compose.app.yml           # Full app compose recipe
+│
+├── backend/                          # FastAPI application server
+│   ├── app/
+│   │   ├── api/routes/               # HTTP route modules
+│   │   ├── core/                     # Config, logging, middleware, errors
+│   │   ├── repositories/            # Dataset access layer
+│   │   ├── schemas/                  # Pydantic request/response models
+│   │   ├── services/                 # Ranking, analytics, copilot, resume services
+│   │   ├── dependencies.py           # FastAPI dependency injection
+│   │   └── main.py                   # Application entrypoint
+│   ├── requirements.txt              # Backend-specific dependencies
+│   └── Dockerfile                    # Backend container
+│
+├── frontend/                         # React + Vite UI
+│   ├── src/
+│   │   ├── components/               # Reusable UI components (20+)
+│   │   ├── pages/                    # Route pages (Home, Candidates, Analyze, Analytics, Profile)
+│   │   ├── lib/api.ts                # Backend base URL configuration
+│   │   ├── App.tsx                   # Root component with routing & theming
+│   │   └── index.css                 # Design system & theme tokens
+│   └── package.json
+│
+├── src/                              # Offline ranking engine (Redrob-compliant)
+│   ├── parser/                       # Candidate parser & JD analyzer
+│   ├── feature_engineering/          # 100+ deterministic engineered features
+│   ├── scoring/                      # Normalized weighted scoring
+│   ├── ranking/                      # Deterministic top-N ranker
+│   ├── reasoning/                    # Template reasoning (no hallucination)
+│   └── validation/                   # Honeypot detection & submission validators
+│
+├── tests/                            # Backend API & pipeline tests
+├── docs/                             # API.md & SANDBOX.md
+├── rank.py                           # Offline CSV generation CLI
+├── jd.txt                            # Senior AI Engineer JD
+├── Dockerfile                        # No-network ranking container
+├── docker-compose.yml                # Offline ranking compose (network_mode: none)
+└── docker-compose.app.yml            # Full application compose
 ```
 
-## Architectural Changes
+### Data Flow
 
-- Restored the removed React frontend and preserved the existing UI, routes, spacing, styling, and interactions.
-- Replaced hardcoded frontend API URLs with `VITE_API_BASE_URL`.
-- Replaced the beginner backend with a layered FastAPI application: routes, schemas, services, repository, dependency providers, config, middleware, logging, and structured errors.
-- Moved challenge ranking into the required `src/parser`, `src/feature_engineering`, `src/scoring`, `src/ranking`, `src/reasoning`, and `src/validation` architecture.
-- Removed legacy `recruiter_brain/` hosted-model and multi-agent code from the executable ranking path.
-- Kept Redrob ranking independent from the web app so submission validation cannot be affected by frontend/backend dependencies.
-- Added Docker recipes for both the no-network challenge runner and the local product app.
-- Added backend tests for health, stats, candidates, analytics, copilot, and resume upload.
-
-## AI Pipeline
-
-```text
-Resume or candidate JSONL
-  -> parsing
-  -> section normalization
-  -> JD requirement extraction
-  -> deterministic feature engineering
-  -> normalized weighted scoring
-  -> honeypot and inconsistency penalties
-  -> deterministic ranking
-  -> template reasoning
-  -> frontend display or submission CSV
+```
+┌─────────────────┐     ┌──────────────────┐     ┌─────────────────┐
+│  candidates.jsonl│────▶│  Parsing &        │────▶│  Feature         │
+│  (100K profiles) │     │  Normalization    │     │  Engineering     │
+└─────────────────┘     └──────────────────┘     │  (100+ features) │
+                                                  └────────┬────────┘
+                                                           │
+┌─────────────────┐     ┌──────────────────┐              │
+│  Frontend UI /   │◀────│  Template         │◀─────────────┤
+│  Submission CSV  │     │  Reasoning        │     ┌────────▼────────┐
+└─────────────────┘     └──────────────────┘     │  Weighted        │
+                                                  │  Scoring &       │
+                        ┌──────────────────┐     │  Honeypot        │
+                        │  JD Requirement   │────▶│  Detection       │
+                        │  Extraction       │     └─────────────────┘
+                        └──────────────────┘
 ```
 
-## Recommendation Engine
+---
 
-The engine creates more than 100 deterministic features across:
+## 🛠 Tech Stack
 
-- production AI and ML systems
-- years in AI, product companies, service companies, startup environments, and research
-- retrieval, ranking, search, recommendation systems, embeddings, vector databases, and hybrid search
-- Python, evaluation metrics, A/B testing, open source, GitHub activity, and project evidence
-- recruiter signals, notice period, response rate, activity, location, relocation, and language evidence
-- career stability, title progression, education, certifications, and profile completeness
-- risk flags for consulting-only, framework-only, title-chasing, CV-only, speech-only, robotics-only, LangChain-only, manager-only, and keyword-stuffed profiles
+| Layer | Technology |
+|-------|-----------|
+| **Frontend** | React 19, Vite 8, TypeScript, TailwindCSS 4, Framer Motion, Recharts, React Query, React Router |
+| **Backend** | Python 3.11, FastAPI, Pydantic, Uvicorn |
+| **Ranking Engine** | NumPy, Pandas, RapidFuzz, Scikit-learn |
+| **Containerization** | Docker, Docker Compose |
+| **Testing** | Python unittest |
 
-The scoring engine uses configurable normalized weights, rewards production evidence, penalizes disqualifiers, and applies a honeypot detector for impossible profiles and inconsistent experience claims.
+---
 
-## Model Improvement Notes
+## 📦 Prerequisites
 
-The previous recommendation behavior depended on loosely structured matching and legacy AI plumbing. The refactor improves quality by adding:
+Before you begin, ensure you have the following installed:
 
-- section-aware parsing instead of flattening every field into one text blob
-- JD analysis for must-have, nice-to-have, reject, culture, behavior, and hiring-intent signals
-- normalized weighted scoring so one feature group cannot dominate by raw count
-- deterministic tie breaking by candidate ID
-- evidence-only reasoning templates with no hallucinated claims
-- risk penalties for impossible dates, inconsistent skill durations, fake expertise, and narrow domain-only profiles
-- production-system boosts for candidates with deployed retrieval, ranking, search, vector, evaluation, and experimentation experience
+| Tool | Version | Download |
+|------|---------|----------|
+| **Python** | 3.11+ | [python.org](https://www.python.org/downloads/) |
+| **Node.js** | 20+ | [nodejs.org](https://nodejs.org/) |
+| **npm** | 9+ | Bundled with Node.js |
+| **Git** | Latest | [git-scm.com](https://git-scm.com/) |
+| **Docker** *(optional)* | Latest | [docker.com](https://www.docker.com/) |
 
-No 100 percent accuracy claim is made. The expected improvement is better ranking stability, better explainability, stronger alignment with the Senior AI Engineer JD, and lower false positives from keyword-heavy but weak profiles.
+---
 
-Optional embedding or cross-encoder reranking is not enabled in the Redrob ranking path because the submission specification forbids network use and hosted LLM/API ranking. If local embeddings are added later, they must be precomputed offline and made optional.
+## 🚀 Getting Started
 
-## Installation
-
-### Python
-
-Use Python 3.11.
+### 1. Clone the Repository
 
 ```bash
+git clone https://github.com/janeshkrish/AI-Recruiter.git
+cd AI-Recruiter
+```
+
+### 2. Backend Setup (Python)
+
+Create a virtual environment and install dependencies:
+
+```bash
+# Create virtual environment
 python -m venv venv
+
+# Activate it
+# On Windows:
 venv\Scripts\activate
+# On macOS/Linux:
+source venv/bin/activate
+
+# Upgrade pip
 python -m pip install --upgrade pip
+
+# Install offline ranking dependencies
 pip install -r requirements.txt
+
+# Install backend API dependencies
 pip install -r backend/requirements.txt
 ```
 
-`requirements.txt` is intentionally limited to the allowed offline ranking stack. `backend/requirements.txt` contains FastAPI application dependencies.
-
-### Node
-
-Use Node 20 or newer.
+### 3. Frontend Setup (Node.js)
 
 ```bash
 cd frontend
-npm ci
+npm install
 cd ..
 ```
 
-### Environment Variables
+### 4. Environment Configuration
 
-Root `.env.example` documents offline ranking paths. `backend/.env.example` documents API configuration. `frontend/.env.example` contains:
-
-```text
-VITE_API_BASE_URL=http://127.0.0.1:8000
-```
-
-No API keys are required. Do not add hosted model credentials to the ranking workflow.
-
-### Dataset
-
-The default dataset path is:
-
-```text
-[PUB] India_runs_data_and_ai_challenge/[PUB] India_runs_data_and_ai_challenge/India_runs_data_and_ai_challenge/candidates.jsonl
-```
-
-No database setup is required. The backend loads the JSONL dataset into memory at startup for UI browsing.
-
-### Models, Embeddings, and Vector Database
-
-No model download, embedding download, or vector database setup is required for the default implementation. Ranking is deterministic and local.
-
-## Running
-
-### Backend
+The project includes `.env.example` files for reference. Copy and customize them if needed:
 
 ```bash
+# Root .env (for offline ranking paths)
+copy .env.example .env
+
+# Backend .env (for API configuration)
+copy backend\.env.example backend\.env
+```
+
+**Key environment variables:**
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `AI_RECRUITER_DATASET_PATH` | `[PUB] India_runs.../candidates` folder | Path to candidate dataset directory |
+| `AI_RECRUITER_CANDIDATES_FILE` | `candidates.jsonl` | Candidate data filename |
+| `VITE_API_BASE_URL` | `http://127.0.0.1:8000` | Backend URL for the frontend |
+
+> **Note:** No API keys are required. The ranking engine is fully local and deterministic.
+
+### 5. Run the Application
+
+You need **two terminals** — one for the backend, one for the frontend.
+
+#### Terminal 1 — Start the Backend
+
+```bash
+# Make sure your virtual environment is activated
 uvicorn backend.app.main:app --host 127.0.0.1 --port 8000
 ```
 
-Open the API docs at:
+✅ Backend will be available at: **http://127.0.0.1:8000**  
+📖 API docs (Swagger UI): **http://127.0.0.1:8000/docs**
 
-```text
-http://127.0.0.1:8000/docs
-```
-
-### Frontend
+#### Terminal 2 — Start the Frontend
 
 ```bash
 cd frontend
-npm run dev -- --host 127.0.0.1 --port 5173
+npx vite --host 127.0.0.1 --port 5173
 ```
 
-Open:
+✅ Frontend will be available at: **http://127.0.0.1:5173**
 
-```text
-http://127.0.0.1:5173
-```
+> **Tip:** Make sure the backend is running before opening the frontend — the UI fetches dataset stats on load.
 
-### Production Frontend Build
+---
+
+## 📦 Offline Ranking (Redrob Submission)
+
+Generate the required top-100 candidate ranking CSV with a single command:
 
 ```bash
-cd frontend
-npm run build
+python rank.py \
+  --candidates "[PUB] India_runs_data_and_ai_challenge/[PUB] India_runs_data_and_ai_challenge/India_runs_data_and_ai_challenge/candidates.jsonl" \
+  --jd jd.txt \
+  --out redrob_senior_ai_engineer_ranking.csv
 ```
 
-### Development Validation
-
-```bash
-python -m unittest discover -s tests
-cd frontend
-npm run lint
-npm run build
-```
-
-## Redrob Submission Reproduction
-
-Single command to reproduce the required CSV:
-
-```bash
-python rank.py --candidates "[PUB] India_runs_data_and_ai_challenge/[PUB] India_runs_data_and_ai_challenge/India_runs_data_and_ai_challenge/candidates.jsonl" --jd jd.txt --out redrob_senior_ai_engineer_ranking.csv
-```
-
-The generated CSV has exactly:
+**Output format:**
 
 ```csv
 candidate_id,rank,score,reasoning
 ```
 
-with 100 rows, unique ranks, unique candidate IDs, non-increasing scores, and deterministic tie ordering.
+The CLI automatically validates:
+- ✅ Exactly 100 rows
+- ✅ Correct CSV headers
+- ✅ Unique candidate IDs
+- ✅ Unique ranks (1-100)
+- ✅ Non-increasing (monotonic) scores
+- ✅ Deterministic tie ordering
+- ✅ Repository structure compliance
 
-## Docker
+---
 
-### No-network Redrob Ranking
+## 🐳 Docker Deployment
+
+### Option A: No-Network Offline Ranking
+
+Runs the ranking engine with `network_mode: "none"` — fully air-gapped:
 
 ```bash
 docker compose -f docker-compose.yml up --build ranker
 ```
 
-`docker-compose.yml` sets `network_mode: "none"` for the ranker service.
+The output CSV will be generated at the project root.
 
-### Full Application
+### Option B: Full Application Stack
+
+Runs both backend and frontend in containers:
 
 ```bash
 docker compose -f docker-compose.app.yml up --build
 ```
 
-Backend:
+| Service | URL |
+|---------|-----|
+| Backend API | http://127.0.0.1:8000 |
+| Frontend UI | http://127.0.0.1:5173 |
+| API Docs | http://127.0.0.1:8000/docs |
 
-```text
-http://127.0.0.1:8000
+---
+
+## 📡 API Reference
+
+Full API documentation is available in [`docs/API.md`](docs/API.md) and via the interactive Swagger UI at `/docs`.
+
+| Method | Endpoint | Description |
+|:------:|----------|-------------|
+| `GET` | `/api/health` | Service health check & ranking mode |
+| `GET` | `/api/status` | Alias for health |
+| `GET` | `/api/stats` | Dataset statistics (total candidates, avg experience, etc.) |
+| `GET` | `/api/candidates` | Paginated candidate search with filters |
+| `GET` | `/api/candidates/{id}` | Individual candidate detail |
+| `GET` | `/api/candidates/role-ranking` | Senior AI Engineer ranking (top 100) |
+| `GET` | `/api/candidates/role-ranking.csv` | Download ranking as CSV |
+| `POST` | `/api/rank` | Rank candidates for a custom JD |
+| `POST` | `/api/rank/role` | Alias for JD-based ranking |
+| `GET` | `/api/pipeline/analytics` | Pipeline analytics & agent metrics |
+| `POST` | `/api/copilot` | Deterministic copilot Q&A |
+| `POST` | `/api/resumes/upload` | Resume upload & safe text extraction |
+
+---
+
+## 🧠 AI Pipeline
+
+The ranking pipeline is fully deterministic and runs entirely on CPU:
+
+```
+Resume / Candidate JSONL
+    │
+    ▼
+┌──────────────────────┐
+│  Parsing &            │  Parse profiles, normalize sections,
+│  Section Normalization│  extract structured data
+└──────────┬───────────┘
+           ▼
+┌──────────────────────┐
+│  JD Requirement       │  Extract must-have, nice-to-have,
+│  Extraction           │  reject signals, culture & behavior
+└──────────┬───────────┘
+           ▼
+┌──────────────────────┐
+│  Feature Engineering  │  100+ deterministic features across
+│  (100+ features)      │  skills, experience, risk, behavior
+└──────────┬───────────┘
+           ▼
+┌──────────────────────┐
+│  Normalized Weighted  │  Configurable weights, production
+│  Scoring              │  evidence boosts, disqualifier penalties
+└──────────┬───────────┘
+           ▼
+┌──────────────────────┐
+│  Honeypot &           │  Detect impossible profiles,
+│  Inconsistency Check  │  fake expertise, inflated timelines
+└──────────┬───────────┘
+           ▼
+┌──────────────────────┐
+│  Deterministic        │  Rank by score, break ties by
+│  Ranking              │  candidate ID
+└──────────┬───────────┘
+           ▼
+┌──────────────────────┐
+│  Template Reasoning   │  Evidence-only explanations,
+│                       │  no hallucinated claims
+└──────────┬───────────┘
+           ▼
+    Frontend UI / CSV
 ```
 
-Frontend:
+---
 
-```text
-http://127.0.0.1:5173
+## 🔬 Recommendation Engine
+
+The engine creates **100+ deterministic features** across the following dimensions:
+
+| Category | Features |
+|----------|----------|
+| **Production AI/ML** | Production ML systems, deployed models, inference pipelines |
+| **Experience Breakdown** | Years in AI, product companies, service companies, startups, research |
+| **Retrieval & Ranking** | Search, recommendation, embeddings, vector DBs, hybrid search |
+| **Technical Skills** | Python proficiency, evaluation metrics, A/B testing, open source |
+| **Behavioral Signals** | 23 Redrob signals — response rate, activity, notice period, engagement |
+| **Career Trajectory** | Stability, title progression, education, certifications, completeness |
+| **Risk Detection** | Consulting-only, framework-only, title-chasing, keyword-stuffing, etc. |
+
+### Scoring Highlights
+
+- ✅ **Normalized weighted scoring** — no single feature group dominates
+- ✅ **Production evidence boosts** — deployed retrieval, ranking, vector, evaluation, experimentation
+- ✅ **Honeypot detection** — impossible profiles, inconsistent experience claims
+- ✅ **Risk penalties** — fake dates, narrow domain-only, manager-only, keyword-stuffed
+- ✅ **Deterministic tie-breaking** — by candidate ID for reproducibility
+- ✅ **Evidence-only reasoning** — templates populated with computed evidence, never hallucinated
+
+---
+
+## 🧪 Testing
+
+### Run Backend & Pipeline Tests
+
+```bash
+python -m unittest discover -s tests
 ```
 
-## API Documentation
+### Lint & Build Frontend
 
-Complete API documentation is in `docs/API.md`. The backend also exposes OpenAPI docs at `/docs`.
-
-Main endpoints:
-
-| Method | Endpoint | Purpose |
-| --- | --- | --- |
-| GET | `/api/health` | Service health and ranking mode |
-| GET | `/api/status` | Alias for health |
-| GET | `/api/stats` | Candidate dataset statistics |
-| GET | `/api/candidates` | Paginated candidate search/filter |
-| GET | `/api/candidates/{candidate_id}` | Candidate detail |
-| GET | `/api/candidates/role-ranking` | Default Senior AI Engineer ranking |
-| GET | `/api/candidates/role-ranking.csv` | Ranking CSV download |
-| POST | `/api/rank` | Rank candidates for a supplied JD |
-| POST | `/api/rank/role` | Alias for JD ranking |
-| GET | `/api/pipeline/analytics` | Pipeline analytics |
-| POST | `/api/copilot` | Deterministic copilot answer |
-| POST | `/api/resumes/upload` | Resume upload and safe text extraction |
-
-## Sandbox Execution
-
-See `docs/SANDBOX.md` for the full sandbox strategy.
-
-The short version:
-
-- run challenge ranking in the no-network Docker compose service
-- mount the dataset read-only where possible
-- cap CPU and memory for app containers
-- store uploaded resumes in temporary isolated directories
-- never execute uploaded files
-- delete temporary upload files after parsing
-- keep API keys out of the ranking path
-
-## Troubleshooting
-
-### Backend cannot find candidates
-
-Check `AI_RECRUITER_DATASET_PATH` or keep the challenge dataset in the default nested folder.
-
-### Frontend cannot reach backend
-
-Set `frontend/.env`:
-
-```text
-VITE_API_BASE_URL=http://127.0.0.1:8000
+```bash
+cd frontend
+npm run lint
+npm run build
 ```
 
-Restart Vite after changing env variables.
+### Validate Submission CSV
 
-### Ranking takes time
+```bash
+python rank.py \
+  --candidates "[PUB] India_runs_data_and_ai_challenge/[PUB] India_runs_data_and_ai_challenge/India_runs_data_and_ai_challenge/candidates.jsonl" \
+  --jd jd.txt \
+  --out submission.csv
+```
 
-The ranker scans 100,000 profiles and engineers many features. On CPU it should complete within the 5 minute target on the provided machine.
+The CLI runs all validation checks automatically and exits with code 1 if any check fails.
 
-### Docker app cannot access data
+---
 
-Use `docker-compose.app.yml`; it mounts the challenge dataset directory into `/app/data`.
+## ❓ Troubleshooting
 
-### CSV validation fails
+<details>
+<summary><b>Backend: "Cannot find candidates" or dataset error</b></summary>
 
-Run the exact Redrob command above. The CLI validates row count, header, unique IDs, ranks, monotonic scores, tie ordering, and repository compliance before exiting.
+Check that the dataset path is correct. Either:
+- Keep the challenge dataset in the default nested folder structure
+- Set `AI_RECRUITER_DATASET_PATH` in your `.env` to point to the directory containing `candidates.jsonl`
+</details>
+
+<details>
+<summary><b>Frontend: "Failed to resolve import" or blank page</b></summary>
+
+1. Make sure `frontend/src/lib/api.ts` exists
+2. Clear Vite's cache and reinstall:
+   ```bash
+   cd frontend
+   Remove-Item -Recurse -Force node_modules  # Windows
+   # rm -rf node_modules                     # macOS/Linux
+   npm install
+   ```
+3. Use `npx vite` instead of `npm run dev` if argument passing causes issues
+</details>
+
+<details>
+<summary><b>Frontend: Cannot reach backend (network errors)</b></summary>
+
+1. Make sure the backend is running on port 8000
+2. Create `frontend/.env` if it doesn't exist:
+   ```
+   VITE_API_BASE_URL=http://127.0.0.1:8000
+   ```
+3. Restart the Vite dev server after changing env variables
+</details>
+
+<details>
+<summary><b>Ranking takes too long</b></summary>
+
+The ranker scans 100,000 profiles with 100+ features each. On a modern CPU it should complete well within the 5-minute target. If it's slow:
+- Ensure no other CPU-intensive processes are running
+- Check available RAM (the dataset loads into memory)
+</details>
+
+<details>
+<summary><b>Docker: App cannot access data</b></summary>
+
+Use `docker-compose.app.yml` — it mounts the challenge dataset directory into `/app/data` as a read-only volume.
+</details>
+
+<details>
+<summary><b>CSV validation fails</b></summary>
+
+Run the exact `rank.py` command shown above. The CLI validates row count, headers, unique IDs/ranks, monotonic scores, tie ordering, and repository structure before exiting.
+</details>
+
+---
+
+## 🔒 Sandbox & Security
+
+See [`docs/SANDBOX.md`](docs/SANDBOX.md) for the full sandbox execution strategy.
+
+**Key principles:**
+- 🔒 Challenge ranking runs with `network_mode: "none"` in Docker
+- 📁 Dataset mounted read-only where possible
+- 🧱 CPU and memory caps on app containers
+- 🗑️ Uploaded resumes stored in isolated temp directories, never executed, deleted after parsing
+- 🚫 No API keys in the ranking path
+
+---
+
+## 👥 Team
+
+| Name | Role | Email |
+|------|------|-------|
+| **Janesh Krishna R** | Backend Engineer | janeshkrishna12@gmail.com |
+| **Shrija Dhanalakshmi SM** | ML Engineer | shrijasm@gmail.com |
+| **Thivakar T** | Frontend Engineer | thivakart2006@gmail.com |
+
+---
+
+## 📄 License
+
+This project was built for the **Redrob India Runs Data & AI Challenge**. All code is original work by Team SOULX.
+
+---
+
+<p align="center">
+  <b>Built with ❤️ by Team SOULX</b><br/>
+  <sub>Deterministic. Explainable. Production-ready.</sub>
+</p>
